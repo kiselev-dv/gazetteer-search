@@ -1,0 +1,13 @@
+{
+	"_source": [
+		"full_text",
+		"id",
+		"type",
+		"name",
+		"housenumber_exact"
+	],
+	"query": {
+	},
+	"size": 10
+}
+

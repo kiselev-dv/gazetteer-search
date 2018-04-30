@@ -1,0 +1,105 @@
+{
+	"addr_row": {
+		"properties": {
+			"json": {
+				"enabled": false
+			},
+			"id": {
+				"type": "keyword"
+			},
+			"type": {
+				"type": "keyword"
+			},
+			"feature_id": {
+				"type": "keyword"
+			},
+			"osm_id": {
+				"type": "keyword"
+			},
+			"full_text": {
+				"type": "text"
+			},
+		
+			"name": {
+				"type": "text"
+			},
+			"name_alt": {
+				"type": "text"
+			},
+			"name_opt": {
+				"type": "text"
+			},
+
+			"housenumber_number": {
+				"type": "integer"
+			},
+			"housenumber_exact": {
+				"type": "keyword"
+			},
+			"housenumber_array": {
+				"type": "keyword"
+			},
+			
+			"street": {
+				"type": "text"
+			},
+			"street_opt": {
+				"type": "text"
+			},
+			"street_type": {
+				"type": "keyword"
+			},
+
+			"postal_code": {
+				"type": "keyword"
+			},
+	
+			"neighbourhood": {
+				"type": "text"
+			},
+	
+			"locality": {
+				"type": "text"
+			},
+			"locality_opt": {
+				"type": "text"
+			},
+			"locality_type": {
+				"type": "keyword"
+			},
+			
+			"centroid": {
+				"type": "geo_point"
+			},
+			
+			"base_score": {
+				"type": "float"
+			},
+			
+			"addr_schema": {
+				"type": "keyword"
+			},
+			"hm_match": {
+				"type": "keyword"
+			},
+			"created": {
+				"type": "date"
+			},
+			
+			"import_id": {
+				"type": "keyword"
+			},
+	
+			"refs": {
+				"type": "object",
+				"enabled": false
+			},
+			
+			"tags": {
+				"type": "object",
+				"enabled": false
+			}		
+		}
+	}
+}
+

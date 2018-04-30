@@ -1,0 +1,56 @@
+{
+	"_source": [
+		"full_text",
+		"id",
+		"type",
+		"name",
+		"housenumber_exact"
+	],
+	"query": {
+		"bool": {
+			"must": [
+				{
+					"term": {
+						"type": "adrpnt"
+					}
+				},
+				{
+					"prefix": {
+						"full_text": {
+							"value": "тими"
+						}
+					}
+				},
+				{
+					"match": {
+						"full_text": {
+							"query": "екотеринбург",
+							"operator": "and",
+							"fuzziness": "1"
+						}
+					}
+				},
+				{
+					"dis_max": {
+						"queries": [
+							{
+								"term": {
+									"housenumber_exact": "13"
+								}
+							},
+							{
+								"terms": {
+									"housenumber_array": [
+										"13",
+										"13a"
+									]
+								}
+							}
+						]
+					}
+				}
+			]
+		}
+	},
+	"size": 10
+}

@@ -1,0 +1,140 @@
+{
+	"_source": [
+		"full_text",
+		"id",
+		"type",
+		"name",
+		"housenumber_exact"
+	],
+	"query": {
+		"dis_max": {
+			"queries": [
+				{
+					"function_score": {
+						"query": {
+							"bool": {
+								"must": [
+									{
+										"term": {
+											"type": "adrpnt"
+										}
+									},
+									{
+										"multi_match": {
+											"query": "екатеринбург темирязева 13",
+											"operator": "OR",
+											"minimum_should_match": "2",
+											"fields": [
+												"locality",
+												"street",
+												"housenumber_exact"
+											],
+											"type": "cross_fields"
+										}
+									},
+									{
+										"dis_max": {
+											"queries": [
+												{
+													"term": {
+														"housenumber_exact": "13"
+													}
+												},
+												{
+													"terms": {
+														"housenumber_array": [
+															"13",
+															"13a"
+														]
+													}
+												}
+											]
+										}
+									}
+								]
+							}
+						},
+						"script_score": {
+							"script": {
+								"source": "_score * doc['base_score'].value * 10"
+							}
+						}
+					}
+				},
+				{
+					"function_score": {
+						"query": {
+							"bool": {
+								"must": [
+									{
+										"multi_match": {
+											"query": "екатеринбург темирязева 13",
+											"operator": "OR",
+											"minimum_should_match": 2,
+											"fields": [
+												"locality",
+												"street"
+											],
+											"type": "cross_fields"
+										}
+									}
+								],
+								"should": [
+									{
+										"match": {
+											"street_opt": "город"
+										}
+									},
+									{
+										"match": {
+											"locality_opt": "город"
+										}
+									},
+									{
+										"match": {
+											"name": {
+												"query": "екатеринбург темирязева",
+												"boost": 2.0,
+												"fuzziness": 1
+											}
+										}
+									},
+									{
+										"constant_score": {
+											"filter": {
+												"terms": {
+													"type": [
+														"plcpnt",
+														"admbnd",
+														"plcbnd"
+													]
+												}
+											},
+											"boost": 1.5
+										}
+									}
+								],
+								"filter": {
+									"terms": {
+										"type": [
+											"hghnet",
+											"plcpnt",
+											"admbnd",
+											"plcbnd"
+										]
+									}
+								}
+							}
+						},
+						"script_score": {
+							"script": {
+								"source": "_score * doc['base_score'].value"
+							}
+						}
+					}
+				}
+			]
+		}
+	},
+	"size": 10
+}

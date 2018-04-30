@@ -1,4 +1,4 @@
-package me.osm.gazetteer.psqlsearch.imp;
+package me.osm.gazetteer.psqlsearch.imp.postgres;
 
 import java.sql.Array;
 import java.sql.SQLException;
@@ -19,7 +19,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import me.osm.gazetteer.psqlsearch.imp.Importer.ImportException;
+import me.osm.gazetteer.psqlsearch.imp.postgres.Importer.ImportException;
 import me.osm.gazetteer.psqlsearch.named_jdbc_stmnt.NamedParameterPreparedStatement;
 import me.osm.gazetteer.psqlsearch.query.IndexAnalyzer;
 import me.osm.gazetteer.psqlsearch.query.IndexAnalyzer.Token;

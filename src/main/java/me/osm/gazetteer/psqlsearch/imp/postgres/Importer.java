@@ -1,4 +1,4 @@
-package me.osm.gazetteer.psqlsearch.imp;
+package me.osm.gazetteer.psqlsearch.imp.postgres;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -8,11 +8,9 @@ import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.text.NumberFormat;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.io.IOUtils;
@@ -21,7 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import me.osm.gazetteer.psqlsearch.dao.ConnectionPool;
-import me.osm.gazetteer.psqlsearch.imp.Importer.ImportException;
 import me.osm.gazetteer.psqlsearch.named_jdbc_stmnt.NamedParameterPreparedStatement;
 
 public class Importer {

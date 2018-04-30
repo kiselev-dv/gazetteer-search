@@ -1,0 +1,82 @@
+{
+	"_source": [
+		"full_text",
+		"id",
+		"type",
+		"name",
+		"base_score"
+	],
+	"query": {
+		"function_score": {
+			"query": {
+				"bool": {
+					"must": [
+						{
+							"multi_match": {
+								"query": "екатеринбург тимирязева 13",
+								"operator": "OR",
+								"minimum_should_match": 2,
+								"fields": [
+									"locality",
+									"street"
+								],
+								"type": "cross_fields"
+							}
+						}
+					],
+					"should": [
+						{
+							"match": {
+								"street_opt": "город"
+							}
+						},
+						{
+							"match": {
+								"locality_opt": "город"
+							}
+						},
+						{
+							"match": {
+								"name": {
+									"query": "екатеринбург тимирязева",
+									"boost": 2.0
+								}
+							}
+						},
+						{
+							"constant_score": {
+								"filter": {
+									"terms": {
+										"type": [
+											"plcpnt",
+											"admbnd",
+											"plcbnd"
+										]
+									}
+								},
+								"boost": 1.5
+							}
+						}
+					],
+					"filter": {
+						"terms": {
+							"type": [
+								"hghnet",
+								"plcpnt",
+								"admbnd",
+								"plcbnd"
+							]
+						}
+					}
+				}
+			},
+			"script_score": {
+				"script": {
+					"source": "_score * doc['base_score'].value"
+				}
+			}
+		}
+	},
+	"size": 10
+}
+

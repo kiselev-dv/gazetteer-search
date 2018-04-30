@@ -11,7 +11,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import me.osm.gazetteer.psqlsearch.dao.ConnectionPool;
-import me.osm.gazetteer.psqlsearch.imp.Importer;
+import me.osm.gazetteer.psqlsearch.imp.postgres.Importer;
 import me.osm.gazetteer.psqlsearch.named_jdbc_stmnt.NamedParameterPreparedStatement;
 
 public class BasicSearchQuery {
