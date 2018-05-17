@@ -21,28 +21,39 @@ public class AddrRowWrapper {
 	private String osmType;
 	
 	private String fullText;
+	
 	private List<Token> name;
-	private List<Token> nameOpt;
 	private List<Token> nameAlt;
+	
 	private int hn;
 	private String hnExact;
 	private Collection<String> hnVariants;
+	
 	private double lon;
 	private double lat;
+	
 	private List<Token> street;
-	private List<Token> streetOpt;
+
 	private List<Token> locality;
 	private List<Token> localityOpt;
+	
 	private List<Token> neighbourhood;
+	
 	private String localityType;
 	private String addrSchema;
 	private double scoreBase;
+
 	private Timestamp timestamp;
 	private JSONObject source;
+	
 	private List<String> poiClasses;
+	
 	private String hnMatch;
 	private List<String> poiKeywords;
+
 	private Map<String, String> refs;
+	private int nameAggIndex;
+	private String ref;
 
 	public void setId(String id) {
 		this.id = id;
@@ -72,10 +83,6 @@ public class AddrRowWrapper {
 		this.name = tokens;
 	}
 
-	public void setNameOpt(List<Token> tokens) {
-		this.nameOpt = tokens;
-	}
-
 	public void setNameAlt(List<Token> tokens) {
 		this.nameAlt = tokens;
 	}
@@ -102,10 +109,6 @@ public class AddrRowWrapper {
 
 	public void setStreet(List<Token> tokens) {
 		this.street = tokens;
-	}
-
-	public void setStreetOpt(List<Token> tokens) {
-		this.streetOpt = tokens;
 	}
 
 	public void setLocality(List<Token> tokens) {
@@ -188,10 +191,6 @@ public class AddrRowWrapper {
 		return fullText;
 	}
 
-	public List<Token> getNameOpt() {
-		return nameOpt;
-	}
-
 	public List<Token> getNameAlt() {
 		return nameAlt;
 	}
@@ -218,10 +217,6 @@ public class AddrRowWrapper {
 
 	public List<Token> getStreet() {
 		return street;
-	}
-
-	public List<Token> getStreetOpt() {
-		return streetOpt;
 	}
 
 	public List<Token> getLocalityOpt() {
@@ -280,7 +275,8 @@ public class AddrRowWrapper {
 		obj.put("full_text", fullText);
 		
 		obj.put("name", asStringList(name));
-		obj.put("name_opt", asStringList(nameOpt));
+		obj.put("ref", ref);
+		obj.put("name_length", name.size());
 		obj.put("name_alt", asStringList(nameAlt));
 		
 		if (hn > 0) {
@@ -292,16 +288,17 @@ public class AddrRowWrapper {
 		obj.put("centroid", getCentroidJSON());
 		
 		obj.put("street", asStringList(street));
-		obj.put("street_opt", asStringList(streetOpt));
+		obj.put("street_length", street.size());
 		//obj.put("street_type", streetType);
 
 		obj.put("locality", asStringList(locality));
-		obj.put("locality_opt", asStringList(localityOpt));
+		obj.put("locality_length", locality.size());
 		obj.put("locality_type", localityType);
 
 		obj.put("neighbourhood", asStringList(neighbourhood));
 		
 		obj.put("addr_schema", addrSchema);
+		obj.put("by_name_agg_index", nameAggIndex);
 
 		obj.put("refs", new JSONObject(refs));
 		
@@ -335,6 +332,18 @@ public class AddrRowWrapper {
 		}
 		
 		return result;
+	}
+
+	public void setNameAggIndex(int i) {
+		this.nameAggIndex = i;
+	}
+
+	public void setRef(String ref) {
+		this.ref = ref;
+	}
+
+	public String getRef() {
+		return this.ref;
 	}
 	
 }

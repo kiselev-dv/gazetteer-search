@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Date;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.io.IOUtils;
@@ -14,6 +15,10 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.joda.time.Duration;
+import org.joda.time.format.PeriodFormatter;
+import org.joda.time.format.PeriodFormatterBuilder;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +40,8 @@ public class ESImporter {
 	
 	private TransportClient client = ESServer.getInstance().client();
 	private volatile BulkRequestBuilder bulk = client.prepareBulk();
+
+	private long started;
 	
 	
 	public static final class ImportException extends RuntimeException {
@@ -63,6 +70,8 @@ public class ESImporter {
 			AddressesIndexHolder.create();
 		}
 		
+		this.started = new Date().getTime();
+		
 		try {
 			GZIPInputStream is = new GZIPInputStream(new FileInputStream(new File(source)));
 			BufferedReader reader = new BufferedReader(new InputStreamReader(is, "utf8"));
@@ -72,18 +81,24 @@ public class ESImporter {
 				while (line != null) {
 					
 					total ++;
-					JSONObject obj = new JSONObject(line);
-					AddrRowWrapper row = parser.parseAddress(obj);
+					try {
+						JSONObject obj = new JSONObject(line);
 					
-					if(row != null) {
-						IndexRequestBuilder index = client
-								.prepareIndex(AddressesIndexHolder.INDEX_NAME, AddressesIndexHolder.ADDR_ROW_TYPE)
-								.setSource(row.getJsonForIndex().toString(), XContentType.JSON);
+						AddrRowWrapper row = parser.parseAddress(obj);
 						
-						bulk.add(index);
+						if(row != null) {
+							IndexRequestBuilder index = client
+									.prepareIndex(AddressesIndexHolder.INDEX_NAME, AddressesIndexHolder.ADDR_ROW_TYPE)
+									.setSource(row.getJsonForIndex().toString(), XContentType.JSON);
+							
+							bulk.add(index);
+						}
+						
+						submitBatch(total);
 					}
-					
-					submitBatch(total);
+					catch (JSONException je) {
+						je.printStackTrace();
+					}
 					
 					line = reader.readLine();
 				}
@@ -95,6 +110,9 @@ public class ESImporter {
 			finally {
 				IOUtils.closeQuietly(reader);
 			}
+			
+			String duration = printDuration(new Date().getTime() - this.started);
+			log.info("Import done in {}", duration);
 		}
 		catch (Exception e) {
 			throw new ImportException(e);
@@ -117,11 +135,36 @@ public class ESImporter {
 	}
 	
 	protected void submitBulk() {
+		
 		BulkResponse response = bulk.get();
 		if(response.hasFailures()) {
 			throw new Error(response.buildFailureMessage());
 		}
+		
 		log.info("{} rows imported", total);
+	}
+
+	private String printDuration(long time) {
+		Duration duration = new Duration(time);
+		PeriodFormatter formatter = new PeriodFormatterBuilder()
+			     .appendDays()
+			     .appendSuffix("d")
+			     .appendSeparator(" ")
+			     .appendHours()
+			     .appendSuffix("h")
+			     .appendSeparator(" ")
+			     .appendMinutes()
+			     .appendSuffix("m")
+			     .appendSeparator(" ")
+			     .appendSeconds()
+			     .appendSuffix("s")
+			     .appendSeparator(" ")
+			     .appendMillis3Digit()
+			     .appendSuffix("ms")
+			     .toFormatter();
+		
+		String durationString = formatter.print(duration.toPeriod());
+		return durationString;
 	}
 	
 	public static void main(String[] args) throws FileNotFoundException, IOException {

@@ -37,6 +37,11 @@ class ReplacerImpl implements Replacer {
 	}
 	
 	@Override
+	public String getPattern() {
+		return patternString;
+	}
+	
+	@Override
 	public Map<String, Collection<String>> replaceGroups(String hn) {
 		
 		def replaces = [:];

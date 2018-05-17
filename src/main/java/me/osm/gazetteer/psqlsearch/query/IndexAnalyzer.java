@@ -13,7 +13,6 @@ import java.util.regex.Matcher;
 import org.apache.commons.lang3.StringUtils;
 
 import gcardone.junidecode.Junidecode;
-import me.osm.gazetteer.psqlsearch.query.IndexAnalyzer.Token;
 
 public class IndexAnalyzer {
 	
@@ -42,57 +41,16 @@ public class IndexAnalyzer {
 		}
 	}
 	
-	public List<Token> normalizeLocationName(String original, boolean doASCII) {
-		Set<String> uniqueTokens = listUniqueTokens(original, localityReplacers);
-		
-		Set<String> matchedOptTokens = findOptionals(uniqueTokens);
-		
-		return asTokens(doASCII, uniqueTokens, matchedOptTokens);
+	public List<Token> normalizeLocationName(String original) {
+		return listTokens(original, localityReplacers);
 	}
 	
-	public List<Token> normalizeStreetName(String original, boolean doASCII) {
-		
-		Set<String> uniqueTokens = listUniqueTokens(original, streetsReplacers);
-		
-		Set<String> matchedOptTokens = findOptionals(uniqueTokens);
-		
-		return asTokens(doASCII, uniqueTokens, matchedOptTokens);
+	public List<Token> normalizeStreetName(String original) {
+		return listTokens(original, streetsReplacers);
 	}
 	
-	public List<Token> normalizeName(String original, boolean doASCII) {
-		Set<String> uniqueTokens = listUniqueTokens(original, streetsReplacers);
-		
-		Set<String> matchedOptTokens = findOptionals(uniqueTokens);
-		
-		return asTokens(doASCII, uniqueTokens, matchedOptTokens);
-	}
-
-	private List<Token> asTokens(boolean doASCII, Set<String> uniqueTokens, Set<String> matchedOptTokens) {
-		List<Token> result = new ArrayList<>();
-
-		for (String token : uniqueTokens) {
-			// in case replacer returned upper case
-			token = token.toLowerCase();
-			
-			boolean optional = QueryAnalyzerImpl.optionals.contains(token) || matchedOptTokens.contains(token);
-			if (token.length() <= MINIMAL_MEANING_TERM_LENGTH) {
-				optional = true;
-			}
-			if (StringUtils.containsAny(token, "0123456789")) {
-				optional = false;
-			}
-			
-			if (StringUtils.isNoneBlank(token)) {
-				result.add(new Token(token, optional));
-				if (doASCII) {
-					String ascii = toASCII(token);
-					ascii = StringUtils.replaceChars(ascii, QueryAnalyzerImpl.removeChars, null);
-					result.add(new Token(ascii, optional));
-				}
-			}
-		}
-		
-		return result;
+	public List<Token> normalizeName(String original) {
+		return listTokens(original, streetsReplacers);
 	}
 
 	private Set<String> findOptionals(Set<String> uniqueTokens) {
@@ -106,17 +64,65 @@ public class IndexAnalyzer {
 				 }
 			}
 		}
+		uniqueTokens.stream().filter(t -> QueryAnalyzerImpl.optionals.contains(t)).forEach(matchedOptTokens::add);
 		
 		return matchedOptTokens;
 	}
 	
-	private Set<String> listUniqueTokens(String original, List<Replacer> replacers) {
+	private List<Token> listTokens(String original, List<Replacer> replacers) {
 		original = StringUtils.stripToEmpty(original);
-		String s = StringUtils.join(transform(original.toLowerCase(), replacers), ' ');
-		s = StringUtils.join(original, s);
-		s = StringUtils.replaceChars(s, QueryAnalyzerImpl.removeChars, null);
-		String[] tokens = StringUtils.split(s, QueryAnalyzerImpl.tokenSeparators);
-		return new LinkedHashSet<>(Arrays.asList(tokens));
+		
+		String replaced = StringUtils.join(transform(original.toLowerCase(), replacers), ' ');
+		replaced = original.toLowerCase() + " " + replaced;
+		
+		String filtered = StringUtils.replaceChars(replaced, QueryAnalyzerImpl.removeChars, null);
+		String transformed = filtered;
+		
+		List<String> optionals = new ArrayList<>();
+		// Mark tokens in braces as optionals
+		filtered = filterOptionals(filtered, optionals, "(", ")");
+		filtered = filterOptionals(filtered, optionals, "[", "]");
+		filtered = filterOptionals(filtered, optionals, "<", ">");
+		filtered = filterOptionals(filtered, optionals, "{", "}");
+		
+		String[] tokensArr = StringUtils.split(filtered, QueryAnalyzerImpl.tokenSeparators);
+		LinkedHashSet<String> tokens = new LinkedHashSet<>(Arrays.asList(tokensArr)); 
+		
+		String optionalsAsString = StringUtils.join(optionals, ' ');
+		String[] optTokensArr = StringUtils.split(optionalsAsString, QueryAnalyzerImpl.tokenSeparators);
+		HashSet<String> optTokens = new HashSet<>(Arrays.asList(optTokensArr));
+		
+		// Look for optional tokens in the rest of the tokens
+		optTokens.addAll(findOptionals(tokens));
+		
+		List<Token> result = new ArrayList<>();
+		for (String token : StringUtils.split(transformed, QueryAnalyzerImpl.tokenSeparators)) {
+			String text = StringUtils.stripToNull(token);
+			if (text != null) {
+				boolean hasNumbers = StringUtils.containsAny(text, "0123456789");
+				
+				boolean optional = optTokens.contains(text);
+				if (!hasNumbers && text.length() < MINIMAL_MEANING_TERM_LENGTH) {
+					optional = true;
+				}
+				
+				result.add(new Token(text, optional));
+				
+			}
+		}
+		
+		return result;
+	}
+
+	private String filterOptionals(String filtered, List<String> optionals, String open, String close) {
+		String[] opt = StringUtils.substringsBetween(filtered, open, close);
+		if (opt != null) {
+			for (String s : opt) {
+				filtered = StringUtils.remove(filtered, s);
+				optionals.add(s);
+			}
+		}
+		return filtered;
 	}
 
 	public Collection<String> getHNVariants(String original) {

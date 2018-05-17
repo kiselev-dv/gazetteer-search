@@ -1,0 +1,32 @@
+{
+	"locality":           0.2,
+	"islet":              0.22,
+	
+    "farm":               0.24,
+	"village":            0.25,
+	"hamlet":             0.35,
+	"isolated_dwelling":  0.30,
+	
+	"island":             0.10,
+	"square":             0.10,
+    
+    "neighbourhood":      0.50,
+    "suburb":             0.55,
+	"city_block":         0.45,
+	"allotments":         0.50,
+	"quarter":            0.50,
+	"region":             0.40,
+	"borough":            0.40,
+	"district":           0.50,
+	
+    
+    "plot":               0.60,
+    "town":               0.65,
+    "city":               1.00,
+
+	"county":             0.80,
+	"municipality":		  0.95,
+	"state":              0.75,
+	
+	"yes":                0.01
+}

@@ -1,4 +1,4 @@
-package me.osm.gazetteer.psqlsearch.sqlquery;
+package me.osm.gazetteer.psqlsearch.backendquery.sql;
 
 import java.sql.Array;
 import java.sql.Connection;
@@ -10,11 +10,13 @@ import java.util.List;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import me.osm.gazetteer.psqlsearch.backendquery.AbstractSearchQuery;
+import me.osm.gazetteer.psqlsearch.backendquery.StandardSearchQueryRow;
 import me.osm.gazetteer.psqlsearch.dao.ConnectionPool;
 import me.osm.gazetteer.psqlsearch.imp.postgres.Importer;
 import me.osm.gazetteer.psqlsearch.named_jdbc_stmnt.NamedParameterPreparedStatement;
 
-public class BasicSearchQuery {
+public class SQLSearchQuery extends AbstractSearchQuery {
 	
 	private static final String template;
 	private static final ConnectionPool pool = ConnectionPool.getInstance();
@@ -29,16 +31,7 @@ public class BasicSearchQuery {
 		}
 	}
 	
-	private List<String> housenumberExact;
-	private List<String> housenumberVariants;
-	private List<String> required;
-	private List<String> optional;
-	
-	private int page;
-	private int pageSize;
-	private boolean prefix;
-
-	public NamedParameterPreparedStatement getStatement() throws SQLException {
+	private NamedParameterPreparedStatement getStatement() throws SQLException {
 		
 		NamedParameterPreparedStatement stmt = NamedParameterPreparedStatement
 				.createNamedParameterPreparedStatement(pool.getConnection(), template);
@@ -90,7 +83,7 @@ public class BasicSearchQuery {
 		return "NONE";
 	}
 
-	public List<StandardSearchQueryRow> listResults() throws SQLException {
+	public List<StandardSearchQueryRow> listResults() throws Exception {
 		List<StandardSearchQueryRow> result = new ArrayList<>(getPageSize());
 		
 		NamedParameterPreparedStatement stmt = getStatement();
@@ -100,10 +93,10 @@ public class BasicSearchQuery {
 			while(rs.next()) {
 				StandardSearchQueryRow row = new StandardSearchQueryRow();
 				
-				row.rank = rs.getDouble("rank");
-				row.fullText = rs.getString("full_text");
-				row.json = rs.getString("json");
-				row.osmId = rs.getString("osm_id");
+				row.setRank(rs.getDouble("rank"));
+				row.setFullText(rs.getString("full_text"));
+				row.setJson(rs.getString("json"));
+				row.setOsmId(rs.getString("osm_id"));
 				
 				result.add(row);
 			}
@@ -120,55 +113,6 @@ public class BasicSearchQuery {
 	private void applyPaging(NamedParameterPreparedStatement stmt) throws SQLException {
 		stmt.setInt("limit", pageSize);
 		stmt.setInt("offset", (page - 1) * pageSize);
-	}
-	
-	public List<String> getRequired() {
-		return required;
-	}
-	public void setRequired(List<String> required) {
-		this.required = required;
-	}
-	
-	public List<String> getHousenumberExact() {
-		return housenumberExact;
-	}
-
-	public void setHousenumberExact(List<String> housenumberExact) {
-		this.housenumberExact = housenumberExact;
-	}
-
-	public List<String> getHousenumberVariants() {
-		return housenumberVariants;
-	}
-	public void setHousenumberVariants(List<String> housenumberVariants) {
-		this.housenumberVariants = housenumberVariants;
-	}
-	
-	public List<String> getOptional() {
-		return optional;
-	}
-	public void setOptional(List<String> optional) {
-		this.optional = optional;
-	}
-
-	public int getPage() {
-		return page;
-	}
-
-	public void setPage(int page) {
-		this.page = page;
-	}
-
-	public int getPageSize() {
-		return pageSize;
-	}
-
-	public void setPageSize(int pageSize) {
-		this.pageSize = pageSize;
-	}
-
-	public void setPrefix(boolean prefix) {
-		this.prefix = prefix;
 	}
 	
 }

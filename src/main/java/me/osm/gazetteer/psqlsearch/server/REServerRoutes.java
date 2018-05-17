@@ -41,6 +41,11 @@ public class REServerRoutes {
 			.flag(Flags.Auth.PUBLIC_ROUTE)
 			.parameter(Parameters.Cache.MAX_AGE, MINUTE);
 			
+			server.uri(serverWebRoot + "/{filename}", new SearchHtml())
+			.alias(serverWebRoot + "/")
+			.flag(Flags.Auth.PUBLIC_ROUTE)
+			.method(HttpMethod.GET).noSerialization();
+			
 			
 //			server.uri(root + "/info.{format}",
 //					new MetaInfoAPI(server))

@@ -1,0 +1,29 @@
+{
+	"motorway" :      0.70,
+	"motorway_link" : 0.70,
+	
+	"trunk" :         0.75,
+	"trunk_link" :    0.75,
+	
+	"primary":        1.00,
+	"primary_link":   0.60,
+	"secondary":      0.95,
+	"secondary_link": 0.60,
+	"tertiary":       0.90,
+	"tertiary_link":  0.60,
+	
+	"residential":    0.85,
+	"unclassified":   0.75,
+	"living_street":  0.70,
+	
+	"service":        0.2,
+	"track":          0.2,
+	
+	"pedestrian":     0.75,
+	"path":           0.45,
+	"footway":        0.5,
+	"steps":          0.35,
+	
+	"proposed":       0.01,
+	"construction":   0.01
+}

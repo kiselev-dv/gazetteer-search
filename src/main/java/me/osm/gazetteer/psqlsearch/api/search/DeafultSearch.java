@@ -1,20 +1,22 @@
 package me.osm.gazetteer.psqlsearch.api.search;
 
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 import me.osm.gazetteer.psqlsearch.api.ResultsWrapper;
+import me.osm.gazetteer.psqlsearch.backendquery.AbstractSearchQuery;
+import me.osm.gazetteer.psqlsearch.backendquery.SearchQueryFactory;
+import me.osm.gazetteer.psqlsearch.backendquery.StandardSearchQueryRow;
+import me.osm.gazetteer.psqlsearch.backendquery.es.ESSearchQueryFactory;
 import me.osm.gazetteer.psqlsearch.query.QToken;
 import me.osm.gazetteer.psqlsearch.query.Query;
 import me.osm.gazetteer.psqlsearch.query.QueryAnalyzer;
 import me.osm.gazetteer.psqlsearch.query.QueryAnalyzerImpl;
-import me.osm.gazetteer.psqlsearch.sqlquery.BasicSearchQuery;
-import me.osm.gazetteer.psqlsearch.sqlquery.StandardSearchQueryRow;
 
 public class DeafultSearch implements Search {
 	
 	private QueryAnalyzer analyzer = new QueryAnalyzerImpl();
+	private SearchQueryFactory queryFactory = new ESSearchQueryFactory();
 
 	
 	@Override
@@ -42,7 +44,8 @@ public class DeafultSearch implements Search {
 			}
 		}
 		
-		BasicSearchQuery standardSearchQuery = new BasicSearchQuery();
+		AbstractSearchQuery standardSearchQuery = queryFactory.newQuery();
+		
 		standardSearchQuery.setHousenumberExact(numeric);
 		standardSearchQuery.setHousenumberVariants(numeric);
 		standardSearchQuery.setRequired(required);
@@ -62,10 +65,10 @@ public class DeafultSearch implements Search {
 		try {
 			List<StandardSearchQueryRow> results = standardSearchQuery.listResults();
 			for (StandardSearchQueryRow row : results) {
-				result.addResultsRow(row.getRank(), row.getFullText(), row.getOsmId());
+				result.addResultsRow(row.getRank(), 0.0, row.getFullText(), row.getOsmId(), null);
 			}
 			
-		} catch (SQLException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			result.setErrorMessage(e.getMessage());
 		}

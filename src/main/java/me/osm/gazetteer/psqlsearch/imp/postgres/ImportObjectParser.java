@@ -48,17 +48,17 @@ public class ImportObjectParser {
 			
 			String fullText = getAddrFullText(addrObject);
 			String localityName = jsonObject.optString("locality_name");
-			List<Token> localityTokens = indexAnalyzer.normalizeLocationName(localityName, DO_ASCII);
+			List<Token> localityTokens = indexAnalyzer.normalizeLocationName(localityName);
 
 			String housenumber = jsonObject.optString("housenumber");
 			String streetName = jsonObject.optString("street_name");
-			List<Token> streetTokens = indexAnalyzer.normalizeStreetName(streetName, DO_ASCII);
+			List<Token> streetTokens = indexAnalyzer.normalizeStreetName(streetName);
 			
 			JSONObject optTags = jsonObject.optJSONObject("tags");
 			String name = optTags != null ? optTags.optString("name") : null;
 			
-			List<Token> nameTokens = indexAnalyzer.normalizeName(name, false);
-			List<Token> nameAltTokens = indexAnalyzer.normalizeName(getAltNames(jsonObject), false);
+			List<Token> nameTokens = indexAnalyzer.normalizeName(name);
+			List<Token> nameAltTokens = indexAnalyzer.normalizeName(getAltNames(jsonObject));
 			
 			float baseScore = 1.0f;
 			

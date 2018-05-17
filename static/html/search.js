@@ -34,6 +34,13 @@ gztrApp.factory('gztrSearch', ['$http', 'api_url', 'search_endpoint',
 gztrApp.controller('SearchController', 
 		['$scope', 'gztrSearch', function($scope, searchAPI ) {
 
+	$scope.link4OSMId = function(osmId) {
+		var t = osmId.substring(0, 1);
+		var type = (t == 'n' ? 'node': (t == 'w' ? 'way' : 'relation'));
+		return 'http://osm.org/' + type + '/' + osmId.substring(1);
+	}
+			
+			
 	/**
 	 * Query the searach API, throttling the queries 
 	 */
@@ -60,7 +67,8 @@ gztrApp.controller('SearchController',
 	};
 	
 	self.queryResponse = function(response) {
-		self.results = response.data.rows;
+		self.result = response.data;
+		self.result.debug_query_json = JSON.parse(self.result.debug_query);
 	};
 	
 }]);

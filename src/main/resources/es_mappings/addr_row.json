@@ -23,11 +23,17 @@
 			"name": {
 				"type": "text"
 			},
+			"ref": {
+				"type": "keyword"
+			},
+			"name_length": {
+				"type": "integer"
+			},
 			"name_alt": {
 				"type": "text"
 			},
-			"name_opt": {
-				"type": "text"
+			"by_name_agg_index": {
+				"type": "integer"
 			},
 
 			"housenumber_number": {
@@ -43,8 +49,8 @@
 			"street": {
 				"type": "text"
 			},
-			"street_opt": {
-				"type": "text"
+			"street_length": {
+				"type": "integer"
 			},
 			"street_type": {
 				"type": "keyword"
@@ -61,8 +67,8 @@
 			"locality": {
 				"type": "text"
 			},
-			"locality_opt": {
-				"type": "text"
+			"locality_length": {
+				"type": "integer"
 			},
 			"locality_type": {
 				"type": "keyword"
@@ -73,7 +79,7 @@
 			},
 			
 			"base_score": {
-				"type": "float"
+				"type": "double"
 			},
 			
 			"addr_schema": {

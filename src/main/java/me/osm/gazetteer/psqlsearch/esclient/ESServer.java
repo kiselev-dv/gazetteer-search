@@ -21,6 +21,8 @@ public class ESServer {
 	private ESServer() {
 		
 		try {
+			System.setProperty("es.set.netty.runtime.available.processors", "false");
+			
 			Settings settings = Settings.builder()
 			        .put("cluster.name", "gazetteer")
 			        .put("client.transport.ignore_cluster_name", "true").build();

@@ -21,7 +21,7 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 	
 	private static final Logger log = LoggerFactory.getLogger(QueryAnalyzerImpl.class);
 
-	public static final String tokenSeparators = "«»<>, -—;&:.\"()|[]№#";
+	public static final String tokenSeparators = "«»<>, -——–;&:.\"()|[]№#";
 	public static final String removeChars = "#?%*№@$'\"";
 	
 	private static final Pattern groupPattern = Pattern.compile("GROUP[0-9]+");
@@ -42,6 +42,7 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 	public static final List<Replacer> searchReplacers = new ArrayList<>();
 	static {
 		ReplacersCompiler.compile(searchReplacers, new File("config/replacers/search/requiredSearchReplacers"));
+		ReplacersCompiler.compile(searchReplacers, new File("config/replacers/search/hnSearchReplacers"));
 	}
 	
 	@Override
@@ -133,7 +134,7 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 	private static void readOptionals() {
 		try {
 			Set<String> patterns = new HashSet<>();
-			File optCfg = new File("config/optional-terms/default");
+			File optCfg = new File("config/optional-terms/default.terms");
 			for(String option : (List<String>)FileUtils.readLines(optCfg)) {
 				if(!StringUtils.startsWith(option, "#") && !StringUtils.isEmpty(option)) {
 					if(StringUtils.startsWith(option, "~")) {

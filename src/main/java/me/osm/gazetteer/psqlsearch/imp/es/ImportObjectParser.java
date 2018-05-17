@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -14,6 +15,8 @@ import org.joda.time.DateTime;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import me.osm.gazetteer.psqlsearch.imp.DefaultScoreBuilder;
 import me.osm.gazetteer.psqlsearch.imp.ScoreBuilder;
@@ -23,10 +26,12 @@ import me.osm.gazetteer.psqlsearch.query.IndexAnalyzer.Token;
 
 public class ImportObjectParser {
 	
-	private static final boolean DO_ASCII = false;
+	private static final Logger log = LoggerFactory.getLogger(ImportObjectParser.class);
 	
 	private IndexAnalyzer indexAnalyzer = new IndexAnalyzer();
 	private ScoreBuilder scoreBuilder = new DefaultScoreBuilder();
+	
+	private Map<Integer, Integer> nameAgg = new HashMap<>();
 
 	public AddrRowWrapper parseAddress(JSONObject jsonObject) throws ImportException {
 		String type = jsonObject.getString("type");
@@ -45,17 +50,18 @@ public class ImportObjectParser {
 			
 			String fullText = getAddrFullText(addrObject);
 			String localityName = jsonObject.optString("locality_name");
-			List<Token> localityTokens = indexAnalyzer.normalizeLocationName(localityName, DO_ASCII);
+			List<Token> localityTokens = indexAnalyzer.normalizeLocationName(localityName);
 
 			String housenumber = jsonObject.optString("housenumber");
 			String streetName = jsonObject.optString("street_name");
-			List<Token> streetTokens = indexAnalyzer.normalizeStreetName(streetName, DO_ASCII);
+			List<Token> streetTokens = indexAnalyzer.normalizeStreetName(streetName);
 			
 			JSONObject optTags = jsonObject.optJSONObject("tags");
 			String name = optTags != null ? optTags.optString("name") : null;
+			String ref = optTags != null ? optTags.optString("ref") : null;
 			
-			List<Token> nameTokens = indexAnalyzer.normalizeName(name, false);
-			List<Token> nameAltTokens = indexAnalyzer.normalizeName(getAltNames(jsonObject), false);
+			List<Token> nameTokens = indexAnalyzer.normalizeName(name);
+			List<Token> nameAltTokens = indexAnalyzer.normalizeName(getAltNames(jsonObject));
 			
 			boolean isPoi = "poipnt".equals(type);
 			if (isPoi || notEmpty(jsonObject)) {
@@ -72,22 +78,19 @@ public class ImportObjectParser {
 				
 				subj.setFullText(fullText);
 				
-				subj.setName(requiredTokens(nameTokens));
-				subj.setNameOpt(optionalTokens(nameTokens));
-				subj.setNameAlt(requiredTokens(nameAltTokens));
+				subj.setName(nameTokens);
+				subj.setNameAlt(nameAltTokens);
+				subj.setRef(ref);
 
 				subj.setHN(parseHousenumber(housenumber));
 				subj.setHNExact(StringUtils.stripToNull(housenumber));
 				subj.setHNVariants(indexAnalyzer.getHNVariants(housenumber));
 				
-				subj.setStreet(requiredTokens(streetTokens));
-				subj.setStreetOpt(optionalTokens(streetTokens));
-				
-				subj.setLocality(requiredTokens(localityTokens));
-				subj.setLocalityOpt(optionalTokens(localityTokens));
+				subj.setStreet(streetTokens);
+				subj.setLocality(localityTokens);
 				
 				subj.setNeighbourhood(null);
-
+				
 				subj.setLocalityType(getLocalityType(jsonObject));
 
 				fillLonLat(subj, jsonObject);
@@ -102,15 +105,25 @@ public class ImportObjectParser {
 				else {
 					subj.setAddrSchema("regular");
 				}
-
 				
+				fillNameAggIndex(type, nameTokens, subj);
+
+				/* TODO find is there any addresses connected
+				 * to highway, and debuf them, not depends
+				 * on ref existance
+				 */
 				fillRefs(subj, jsonObject);
 				
 				DateTime dateTimeTimestamp = new DateTime(jsonObject.getString("timestamp"));
 				subj.setTimestamp(new Timestamp(dateTimeTimestamp.getMillis()));
 				subj.setSource(jsonObject);
 
-				subj.setScoreBase(scoreBuilder.getScore(subj));
+				double score = scoreBuilder.getScore(subj);
+				if (score == 0.0) {
+					return null;
+				}
+				
+				subj.setScoreBase(score);
 
 				return subj;
 			}
@@ -122,13 +135,33 @@ public class ImportObjectParser {
 
 		return null;
 	}
+
+	private void fillNameAggIndex(String type, List<Token> nameTokens, AddrRowWrapper subj) {
+		subj.setNameAggIndex(0);
+		if ("hghnet".equals(type)) {
+			
+			if(nameTokens.stream().filter(t -> !t.optional).count() > 0) {
+				int nameHash = nameTokens.stream().filter(t -> !t.optional)
+						.mapToInt(t -> t.token.hashCode()).reduce((i1, i2) -> i1 * i2).getAsInt();
+				
+				if(nameAgg.get(nameHash) == null) {
+					nameAgg.put(nameHash, 0);
+				}
+				
+				int i = nameAgg.get(nameHash);
+				subj.setNameAggIndex(i);
+				
+				nameAgg.put(nameHash, i + 1);
+			}
+		}
+	}
 	
 	private String getLocalityType(JSONObject jsonObject) {
 		return null;
 	}
 
 	private int parseHousenumber(String housenumber) {
-		String string = StringUtils.stripToNull(housenumber);
+		String string = StringUtils.stripToEmpty(housenumber);
 		string = string.replaceAll("[^\\d.]", " ");
 		Pattern pattern = Pattern.compile("[\\d]+");
 		Matcher matcher = pattern.matcher(string);

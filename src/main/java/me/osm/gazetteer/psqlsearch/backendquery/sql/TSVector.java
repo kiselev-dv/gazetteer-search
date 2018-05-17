@@ -1,4 +1,4 @@
-package me.osm.gazetteer.psqlsearch.sqlquery;
+package me.osm.gazetteer.psqlsearch.backendquery.sql;
 
 import java.util.List;
 

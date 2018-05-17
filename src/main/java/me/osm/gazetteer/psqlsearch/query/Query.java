@@ -5,9 +5,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import org.elasticsearch.index.query.QueryBuilders;
+
 public class Query {
 	
 	private String original;
+	
+	private QToken prefix;
 	
 	private List<QToken> tokens;
 	
@@ -129,12 +133,14 @@ public class Query {
 		
 		StringBuilder sb = new StringBuilder();
 
-		if(tokens == null || tokens.isEmpty()) {
-			return "";
+		if(tokens != null) {
+			for(QToken t : tokens) {
+				sb.append(" ").append(t.print());
+			}
 		}
 		
-		for(QToken t : tokens) {
-			sb.append(" ").append(t.print());
+		if (prefix != null) {
+			sb.append(" ").append(prefix.print()).append("*");
 		}
 		
 		return sb.substring(1);
@@ -146,6 +152,19 @@ public class Query {
 
 	public Collection<String> getOriginalVarians() {
 		return originalVariants;
+	}
+
+	public QToken findPrefix() {
+		QToken lastToken = tokens.get(tokens.size() - 1);
+		if(!lastToken.isHasNumbers()) {
+			prefix = lastToken;
+			tokens.remove(tokens.size() - 1);
+		}
+		return prefix;
+	}
+	
+	public QToken getPrefix() {
+		return prefix;
 	}
 	
 }
