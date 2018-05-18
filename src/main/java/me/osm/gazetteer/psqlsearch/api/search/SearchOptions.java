@@ -5,7 +5,10 @@ public class SearchOptions {
 	private boolean withPrefix = true; 
 	private Double lon; 
 	private Double lat;
-	private boolean addressesOnly;
+	private boolean addressesOnly = false;
+	
+	private boolean rangeHouseNumbers = true;
+	private boolean fuzzy = true;
 	
 	public Double getLon() {
 		return lon;
@@ -34,5 +37,20 @@ public class SearchOptions {
 	public void setWithPrefix(boolean withPrefix) {
 		this.withPrefix = withPrefix;
 	}
+	
+	public boolean isRangeHouseNumbers() {
+		return rangeHouseNumbers;
+	}
+	public void setRangeHouseNumbers(boolean rangeHouseNumbers) {
+		this.rangeHouseNumbers = rangeHouseNumbers;
+	}
+	
+	public boolean isFuzzy() {
+		return fuzzy;
+	}
+	public void setFuzzy(boolean fuzzy) {
+		this.fuzzy = fuzzy;
+	}
+	
 	
 }

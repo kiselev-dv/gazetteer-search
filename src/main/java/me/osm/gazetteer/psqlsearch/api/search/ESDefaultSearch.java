@@ -48,10 +48,6 @@ public class ESDefaultSearch implements Search {
 	@Override
 	public ResultsWrapper search(String queryString, int page, int pageSize, SearchOptions options) {
 
-//		boolean strict = false;
-		boolean rangeHouseNumbers = true;
-		//prefix = false;
-		
 		Query query = analyzer.getQuery(queryString);
 		List<QToken> tokens = query.listToken();
 		
@@ -110,12 +106,12 @@ public class ESDefaultSearch implements Search {
 		});
 		
 		
-		JSONObject housenumber = buildHousenumberQ(rangeHouseNumbers, numberTokens);
+		JSONObject housenumber = buildHousenumberQ(options.isRangeHouseNumbers(), numberTokens);
 		
 		BooleanPart mainBooleanPart = new BooleanPart();
 		
 		if (!requiredTokens.isEmpty()) {
-			JSONObject multimatch = buildMultyMatchQuery(requiredTokens, prefixT, true);
+			JSONObject multimatch = buildMultyMatchQuery(requiredTokens, prefixT, options.isFuzzy());
 			mainBooleanPart.addMust(multimatch);
 		}
 		
