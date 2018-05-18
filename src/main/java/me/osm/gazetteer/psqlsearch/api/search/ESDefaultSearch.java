@@ -121,7 +121,7 @@ public class ESDefaultSearch implements Search {
 		}
 		
 		if (prefixPart != null) {
-			mainBooleanPart.addMust(prefixPart);
+			mainBooleanPart.addShould(prefixPart);
 		}
 		
 		if (requiredTokens.isEmpty()) {
@@ -176,15 +176,16 @@ public class ESDefaultSearch implements Search {
 		JSONArray termTopQArray = new JSONArray();
 		
 		JSONObject multimatch = new JSONObject().put("bool", new JSONObject()
-				.put("must", termTopQArray)
+				.put("should", termTopQArray)
 				.put("_name", "required_terms"));
 
+		int tokenCounter = 0;
+		
 		for (QToken qtoken : requiredTokens) {
 			addToken(fuzzy, termTopQArray, qtoken);
+			tokenCounter++;
 		}
 		
-		//multimatch.getJSONObject("bool").put("minimum_should_match", requiredTokens.size());
-
 		if (prefixT != null) {
 			
 			Prefix localityPrefix = new Prefix(prefixT.toString(), "locality");
@@ -199,14 +200,25 @@ public class ESDefaultSearch implements Search {
 			termTopQArray.put(new JSONObject().put("bool", 
 					new JSONObject().put("should", termOverFieldsShould)));
 			
-			//multimatch.getJSONObject("bool").put("minimum_should_match", requiredTokens.size() + 1);
+			tokenCounter++;
 		}
 		
 		for (QToken qtoken : numberTokens) {
 			if (qtoken.isFuzzied() && !qtoken.isNumbersOnly()) {
 				addToken(false, termTopQArray, qtoken);
+				tokenCounter++;
 			}
 		}
+		
+		int shouldMatch = tokenCounter;
+		if (tokenCounter > 2) {
+			shouldMatch = 2;
+		}
+		if (tokenCounter > 4) {
+			shouldMatch = (int)(1.0 * tokenCounter * 0.6);
+		}
+		
+		multimatch.getJSONObject("bool").put("minimum_should_match", shouldMatch);
 		
 		Map<String, Object> parameters = new HashMap<>();
 		parameters.put("adrpnt_boost", mainMatchAdrpntBoost);
