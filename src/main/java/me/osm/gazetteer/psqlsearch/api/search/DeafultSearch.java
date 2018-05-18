@@ -20,9 +20,7 @@ public class DeafultSearch implements Search {
 
 	
 	@Override
-	public ResultsWrapper search(String queryString, boolean prefix, 
-				Double lon, Double lat, boolean addressesOnly, int page,
-			int pageSize) {
+	public ResultsWrapper search(String queryString, int page, int pageSize, SearchOptions options) {
 
 		Query query = analyzer.getQuery(queryString);
 		List<QToken> tokens = query.listToken();
@@ -51,7 +49,7 @@ public class DeafultSearch implements Search {
 		standardSearchQuery.setRequired(required);
 		standardSearchQuery.setOptional(optional);
 		
-		standardSearchQuery.setPrefix(prefix);
+		standardSearchQuery.setPrefix(options.isWithPrefix());
 		
 		standardSearchQuery.setPage(page);
 		standardSearchQuery.setPageSize(pageSize);
@@ -76,17 +74,11 @@ public class DeafultSearch implements Search {
 		return result;
 	}
 
-
-	@Override
-	public ResultsWrapper search(String queryString, double[] bbox, String[] poiTypes, int page, int pageSize) {
-		return null;
-	}
-
 	public static void main(String[] args) {
 		DeafultSearch instance = new DeafultSearch();
 		
 		for (String q : args) {
-			ResultsWrapper result = instance.search(q, false, null, null, false, 0, 20);
+			ResultsWrapper result = instance.search(q, 0, 20, new SearchOptions());
 			System.out.println(result);
 		}
 	}

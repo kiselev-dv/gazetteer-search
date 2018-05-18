@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import com.google.inject.Inject;
 
 import me.osm.gazetteer.psqlsearch.api.search.Search;
+import me.osm.gazetteer.psqlsearch.api.search.SearchOptions;
 
 public class SearchAPIAdapter implements SearchAPI {
 	
@@ -30,19 +31,22 @@ public class SearchAPIAdapter implements SearchAPI {
 
 	@Override
 	public ResultsWrapper read(Request request, Response response) {
+
+		SearchOptions searchOptions = new SearchOptions();
 		
 		String query = request.getHeader(Q_PARAM);
 		boolean prefix = getBoolean(request, PREFIX_PARAM, false);
+		searchOptions.setWithPrefix(prefix);
 		
 		int pageSize = getPageSize(request);
 		int page = getPage(request);
 		
-		Double lon = getLon(request);
-		Double lat = getLat(request);
+		searchOptions.setLon(getLon(request));
+		searchOptions.setLat(getLat(request));
 		
 		log.info("search {}", query);
 		
-		return search.search(query, prefix, lon, lat, false, page, pageSize);
+		return search.search(query, page, pageSize, searchOptions);
 	}
 
 	private boolean getBoolean(Request request, String header, boolean defValue) {

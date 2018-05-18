@@ -46,9 +46,7 @@ public class ESDefaultSearch implements Search {
 	private double prefixRefBoost = 0.005;
 	
 	@Override
-	public ResultsWrapper search(String queryString, boolean prefix, 
-			Double lon, Double lat, boolean addressesOnly, int page,
-			int pageSize) {
+	public ResultsWrapper search(String queryString, int page, int pageSize, SearchOptions options) {
 
 //		boolean strict = false;
 		boolean rangeHouseNumbers = true;
@@ -66,7 +64,7 @@ public class ESDefaultSearch implements Search {
 		ESQueryPart prefixPart = null;
 		QToken prefixT = null;
 		
-		if (prefix && !queryString.endsWith(" ")) {
+		if (options.isWithPrefix() && !queryString.endsWith(" ")) {
 			prefixT = query.findPrefix();
 		}
 
@@ -315,11 +313,4 @@ public class ESDefaultSearch implements Search {
 		}
 	}
 
-	@Override
-	public ResultsWrapper search(String query, double[] bbox, String[] poiTypes, int page, int pageSize) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	
 }
