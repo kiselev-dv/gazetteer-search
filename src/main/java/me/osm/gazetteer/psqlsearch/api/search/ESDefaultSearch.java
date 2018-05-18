@@ -2,6 +2,7 @@ package me.osm.gazetteer.psqlsearch.api.search;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -16,7 +17,6 @@ import org.json.JSONObject;
 import me.osm.gazetteer.psqlsearch.api.ResultsWrapper;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.BooleanPart;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.CustomScore;
-import me.osm.gazetteer.psqlsearch.backendquery.es.builders.ESMainMultyMatch;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.ESQueryPart;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.HousenumbersPart;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.MatchPart;
@@ -33,6 +33,17 @@ import me.osm.gazetteer.psqlsearch.query.QueryAnalyzerImpl;
 public class ESDefaultSearch implements Search {
 
 	private QueryAnalyzer analyzer = new QueryAnalyzerImpl();
+
+	private double ovarallHNQueryBoost = 1.0;
+	private double hnArrayQBoost = 10.0;
+	private double rangeHNQBoost = 0.01;
+	
+	private double mainMatchAdrpntBoost = 0.8;
+	
+	private double prefixScoreScale = 100.0;
+	private double prefixEmptyNameLength = 5.0;
+	private double prefixPlcpntBoost = 5.0;
+	private double prefixRefBoost = 0.005;
 	
 	@Override
 	public ResultsWrapper search(String queryString, boolean prefix, 
@@ -41,7 +52,7 @@ public class ESDefaultSearch implements Search {
 
 //		boolean strict = false;
 		boolean rangeHouseNumbers = true;
-		prefix = false;
+		//prefix = false;
 		
 		Query query = analyzer.getQuery(queryString);
 		List<QToken> tokens = query.listToken();
@@ -68,14 +79,21 @@ public class ESDefaultSearch implements Search {
 				prefixPart = new Prefix(prefixT.toString(), "full_text");
 			}
 			
-			String prefixScoreScript = 
-					  "100.0 * "
-					+ "doc['base_score'].value / "
-					+ "(doc['name_length'].value == 0.0 ? 5.0 : doc['name_length'].value) * "
-					+ "(doc['type'].value == 'plcpnt' ? 5.0 : 1.0)"
-					+ " * (doc['ref'].value != null ? 0.05 : 1.0)";
+			Map<String, Object> params = new HashMap<>();
 			
-			prefixPart = new CustomScore(prefixPart, prefixScoreScript);
+			params.put("scale", prefixScoreScale);
+			params.put("empty_name_length", prefixEmptyNameLength);
+			params.put("plcpnt_boost", prefixPlcpntBoost);
+			params.put("ref_boost", prefixRefBoost);
+			
+			String prefixScoreScript = 
+					  "params.scale * "
+					+ "doc['base_score'].value / "
+					+ "(doc['name_length'].value == 0.0 ? params.empty_name_length : doc['name_length'].value) * "
+					+ "(doc['type'].value == 'plcpnt' ? params.plcpnt_boost : 1.0)"
+					+ " * (doc['ref'].value != null ? params.ref_boost : 1.0)";
+			
+			prefixPart = new CustomScore(prefixPart, prefixScoreScript, params);
 		}
 		
 		List<QToken> numberTokens = new ArrayList<>();
@@ -99,17 +117,8 @@ public class ESDefaultSearch implements Search {
 		BooleanPart mainBooleanPart = new BooleanPart();
 		
 		if (!requiredTokens.isEmpty()) {
-//			ESMainMultyMatch mainMultyMatchPart = new ESMainMultyMatch(
-//					tokensAsStringList(requiredTokens), 
-//					requiredVariants, 
-//					tokensAsStringList(numberTokens));
-			
-			//mainBooleanPart.addMust(mainMultyMatchPart);
-			
-			JSONObject multimatch = buildMultyMatchQuery(requiredTokens, true);
-			
+			JSONObject multimatch = buildMultyMatchQuery(requiredTokens, prefixT, true);
 			mainBooleanPart.addMust(multimatch);
-			
 		}
 		
 		if (housenumber != null) {
@@ -167,12 +176,12 @@ public class ESDefaultSearch implements Search {
 		return results;
 	}
 
-	private JSONObject buildMultyMatchQuery(List<QToken> requiredTokens, boolean fuzzy) {
+	private JSONObject buildMultyMatchQuery(List<QToken> requiredTokens, QToken prefixT, boolean fuzzy) {
 		
-		JSONArray boolMultiMatchMust = new JSONArray();
+		JSONArray termTopQArray = new JSONArray();
 		
 		JSONObject multimatch = new JSONObject().put("bool", new JSONObject()
-				.put("must", boolMultiMatchMust)
+				.put("should", termTopQArray)
 				.put("_name", "required_terms"));
 
 		for (QToken qtoken : requiredTokens) {
@@ -191,7 +200,7 @@ public class ESDefaultSearch implements Search {
 					.put(matchLocality.getPart())
 					.put(matchStreet.getPart());
 			
-			boolMultiMatchMust.put(new JSONObject().put("bool", 
+			termTopQArray.put(new JSONObject().put("bool", 
 					new JSONObject().put("should", termOverFieldsShould)));
 			
 			if (fuzzy) {
@@ -208,30 +217,53 @@ public class ESDefaultSearch implements Search {
 			}
 		}
 		
-		return new JSONObject().put("function_score", new JSONObject()
-				.put("query", multimatch)
-				.put("script_score", new JSONObject()
-						.put("script", "_score * (doc['type'].value == 'adrpnt' ? 0.8 : 1.0)")));
+		multimatch.getJSONObject("bool").put("minimum_should_match", requiredTokens.size());
+
+		if (prefixT != null) {
+			
+			Prefix localityPrefix = new Prefix(prefixT.toString(), "locality");
+			localityPrefix.setName("locality_prefix:" + prefixT.toString());
+			Prefix streetPrefix = new Prefix(prefixT.toString(), "street");
+			streetPrefix.setName("street_prefix:" + prefixT.toString());
+			
+			JSONArray termOverFieldsShould = new JSONArray()
+					.put(localityPrefix.getPart())
+					.put(streetPrefix.getPart());
+			
+			termTopQArray.put(new JSONObject().put("bool", 
+					new JSONObject().put("should", termOverFieldsShould)));
+			
+			multimatch.getJSONObject("bool").put("minimum_should_match", requiredTokens.size() + 1);
+		}
 		
-		//return multimatch;
+		Map<String, Object> parameters = new HashMap<>();
+		parameters.put("adrpnt_boost", mainMatchAdrpntBoost);
+		
+		String script = "_score * (doc['type'].value == 'adrpnt' ? params.adrpnt_boost : 1.0)";
+		
+		return new CustomScore(multimatch, script, parameters).getPart();
+		
 	}
 
 	private JSONObject buildHousenumberQ(boolean rangeHouseNumbers, List<QToken> numberTokens) {
 		JSONObject housenumber = null;
 		
 		for (QToken t : numberTokens) {
-			ESQueryPart hn = new HousenumbersPart(
+			HousenumbersPart hn = new HousenumbersPart(
 					t.toString(), 
 					t.getVariants(), 
 					getNumberPart(t.toString()), 
 					rangeHouseNumbers);
+			
+			hn.setHnArrayQBoost(hnArrayQBoost);
+			hn.setRangeHNQBoost(rangeHNQBoost);
 			
 			if (numberTokens.size() == 1) {
 				housenumber = hn.getPart();
 			}
 			else if (housenumber == null) {
 				housenumber = new JSONObject().put("dis_max", 
-						new JSONObject().put("boost", 1.8).put("queries", 
+						new JSONObject().put("boost", ovarallHNQueryBoost).put("queries", 
 								new JSONArray().put(hn.getPart())));
 			}
 			else {

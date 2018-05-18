@@ -12,6 +12,9 @@ public class HousenumbersPart implements ESQueryPart {
 	private List<String> variants;
 	private Integer numberPart;
 	private boolean useRange;
+	
+	private double hnArrayQBoost = 1.5;
+	private double rangeHNQBoost = 0.5;
 
 	public HousenumbersPart(String exact, List<String> variants, Integer numberPart, boolean useRange) {
 		this.exact = exact;
@@ -23,6 +26,14 @@ public class HousenumbersPart implements ESQueryPart {
 		this.useRange = useRange;
 	}
 	
+	public void setHnArrayQBoost(double hnArrayQBoost) {
+		this.hnArrayQBoost = hnArrayQBoost;
+	}
+
+	public void setRangeHNQBoost(double rangeHNQBoost) {
+		this.rangeHNQBoost = rangeHNQBoost;
+	}
+
 	@Override
 	public JSONObject getPart() {
 		JSONObject termsq = new JSONObject();
@@ -31,7 +42,7 @@ public class HousenumbersPart implements ESQueryPart {
 		termsq.getJSONObject("terms").put("_name", "house_number_array:" + exact);
 		termsq.getJSONObject("terms").put("housenumber_array", this.variants);
 		termsq.getJSONObject("terms").getJSONArray("housenumber_array").put(this.exact);
-		termsq.getJSONObject("terms").put("boost", 1.5);
+		termsq.getJSONObject("terms").put("boost", hnArrayQBoost);
 		
 		if (this.numberPart != null && useRange) {
 			JSONObject range = getRangeQuery();
@@ -40,7 +51,7 @@ public class HousenumbersPart implements ESQueryPart {
 			rangeButNotMain.put("bool",	new JSONObject()
 					.put("must", range)
 					.put("must_not", termsq)
-					.put("boost", 0.5f)
+					.put("boost", rangeHNQBoost)
 					.put("_name", "range_house_numbers:" + exact));
 			
 			return new JSONObject().put("dis_max", new JSONObject()

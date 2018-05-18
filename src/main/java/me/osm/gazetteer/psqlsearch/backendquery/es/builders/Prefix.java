@@ -8,6 +8,8 @@ public class Prefix implements ESQueryPart {
 
 	private String prefix;
 	private String field;
+
+	private String name;
 	
 	public Prefix(String prefix, String field) {
 		this.prefix = prefix;
@@ -27,7 +29,17 @@ public class Prefix implements ESQueryPart {
 			.getJSONObject(this.field)
 			.put("value", this.prefix);
 		
+		if (name != null) {
+			obj.getJSONObject(QUERY_NAME)
+			.getJSONObject(this.field)
+			.put("_name", this.name);
+		}
+		
 		return obj;
+	}
+
+	public void setName(String name) {
+		this.name = name; 
 	}
 
 }

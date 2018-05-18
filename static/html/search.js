@@ -1,6 +1,11 @@
 var gztrApp = angular.module('gztr', []);
 
-gztrApp.value('api_url', 'http://localhost:8080');
+var path = window.location.pathname;
+var pathName = path.substring(0, path.lastIndexOf('/'));
+var baseUrl = window.location.origin + pathName;
+
+
+gztrApp.value('api_url', pathName);
 gztrApp.value('search_endpoint', '/location/_search.json');
 gztrApp.value('min_length', 3);
 gztrApp.value('throttle_delay', 250);
