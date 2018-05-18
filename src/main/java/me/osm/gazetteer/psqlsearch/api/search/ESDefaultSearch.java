@@ -35,7 +35,7 @@ public class ESDefaultSearch implements Search {
 	private QueryAnalyzer analyzer = new QueryAnalyzerImpl();
 
 	private double ovarallHNQueryBoost = 1.0;
-	private double hnArrayQBoost = 10.0;
+	private double hnArrayQBoost = 20.0;
 	private double rangeHNQBoost = 0.01;
 	
 	private double mainMatchAdrpntBoost = 0.8;
@@ -111,7 +111,8 @@ public class ESDefaultSearch implements Search {
 		BooleanPart mainBooleanPart = new BooleanPart();
 		
 		if (!requiredTokens.isEmpty()) {
-			JSONObject multimatch = buildMultyMatchQuery(requiredTokens, prefixT, options.isFuzzy());
+			JSONObject multimatch = buildMultyMatchQuery(
+					requiredTokens, prefixT, numberTokens, options.isFuzzy());
 			mainBooleanPart.addMust(multimatch);
 		}
 		
@@ -170,48 +171,19 @@ public class ESDefaultSearch implements Search {
 		return results;
 	}
 
-	private JSONObject buildMultyMatchQuery(List<QToken> requiredTokens, QToken prefixT, boolean fuzzy) {
+	private JSONObject buildMultyMatchQuery(List<QToken> requiredTokens, QToken prefixT, List<QToken> numberTokens, boolean fuzzy) {
 		
 		JSONArray termTopQArray = new JSONArray();
 		
 		JSONObject multimatch = new JSONObject().put("bool", new JSONObject()
-				.put("should", termTopQArray)
+				.put("must", termTopQArray)
 				.put("_name", "required_terms"));
 
 		for (QToken qtoken : requiredTokens) {
-			String token = qtoken.toString();
-			
-			List<String> tokenValues = Arrays.asList(token);
-			tokenValues.addAll(qtoken.getVariants());
-			
-			MatchPart matchLocality = new MatchPart("locality", tokenValues);
-			matchLocality.setName("locality_token:" + token);
-			
-			MatchPart matchStreet = new MatchPart("street", tokenValues);
-			matchStreet.setName("street_token:" + token);
-			
-			JSONArray termOverFieldsShould = new JSONArray()
-					.put(matchLocality.getPart())
-					.put(matchStreet.getPart());
-			
-			termTopQArray.put(new JSONObject().put("bool", 
-					new JSONObject().put("should", termOverFieldsShould)));
-			
-			if (fuzzy) {
-				matchLocality.setFuzziness("1");
-				matchLocality.setName("locality_token_fuzzy:" + token);
-				matchLocality.setBoost(0.75);
-				
-				matchStreet.setFuzziness("1");
-				matchStreet.setName("street_token_fuzzy:" + token);
-				matchStreet.setBoost(0.75);
-				
-				termOverFieldsShould.put(matchLocality.getPart());
-				termOverFieldsShould.put(matchStreet.getPart());
-			}
+			addToken(fuzzy, termTopQArray, qtoken);
 		}
 		
-		multimatch.getJSONObject("bool").put("minimum_should_match", requiredTokens.size());
+		//multimatch.getJSONObject("bool").put("minimum_should_match", requiredTokens.size());
 
 		if (prefixT != null) {
 			
@@ -227,7 +199,13 @@ public class ESDefaultSearch implements Search {
 			termTopQArray.put(new JSONObject().put("bool", 
 					new JSONObject().put("should", termOverFieldsShould)));
 			
-			multimatch.getJSONObject("bool").put("minimum_should_match", requiredTokens.size() + 1);
+			//multimatch.getJSONObject("bool").put("minimum_should_match", requiredTokens.size() + 1);
+		}
+		
+		for (QToken qtoken : numberTokens) {
+			if (qtoken.isFuzzied() && !qtoken.isNumbersOnly()) {
+				addToken(false, termTopQArray, qtoken);
+			}
 		}
 		
 		Map<String, Object> parameters = new HashMap<>();
@@ -237,6 +215,40 @@ public class ESDefaultSearch implements Search {
 		
 		return new CustomScore(multimatch, script, parameters).getPart();
 		
+	}
+
+	private void addToken(boolean fuzzy, JSONArray termTopQArray, QToken qtoken) {
+		String token = qtoken.toString();
+		
+		List<String> tokenValues = new ArrayList<>(Arrays.asList(token));
+		if (qtoken.isFuzzied()) {
+			tokenValues.addAll(qtoken.getVariants());
+		}
+				MatchPart matchLocality = new MatchPart("locality", tokenValues);
+		matchLocality.setName("locality_token:" + token);
+		
+		MatchPart matchStreet = new MatchPart("street", tokenValues);
+		matchStreet.setName("street_token:" + token);
+		
+		JSONArray termOverFieldsShould = new JSONArray()
+				.put(matchLocality.getPart())
+				.put(matchStreet.getPart());
+		
+		termTopQArray.put(new JSONObject().put("bool", 
+				new JSONObject().put("should", termOverFieldsShould)));
+		
+		if (fuzzy) {
+			matchLocality.setFuzziness("1");
+			matchLocality.setName("locality_token_fuzzy:" + token);
+			matchLocality.setBoost(0.75);
+			
+			matchStreet.setFuzziness("1");
+			matchStreet.setName("street_token_fuzzy:" + token);
+			matchStreet.setBoost(0.75);
+			
+			termOverFieldsShould.put(matchLocality.getPart());
+			termOverFieldsShould.put(matchStreet.getPart());
+		}
 	}
 
 	private JSONObject buildHousenumberQ(boolean rangeHouseNumbers, List<QToken> numberTokens) {
