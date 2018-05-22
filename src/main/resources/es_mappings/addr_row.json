@@ -1,5 +1,15 @@
 {
 	"addr_row": {
+		"dynamic_templates": [
+			{
+				"refs": {
+					"path_match": "refs.*",
+					"mapping": {
+						"type": "keyword"
+					}
+				}
+			}
+		],
 		"properties": {
 			"json": {
 				"enabled": false
@@ -74,6 +84,20 @@
 				"type": "keyword"
 			},
 			
+			"admin0": {
+				"type": "text"
+			},
+			"admin1": {
+				"type": "text"
+			},
+			"admin2": {
+				"type": "text"
+			},
+			"local_admin": {
+				"type": "text"
+			},
+			
+			
 			"centroid": {
 				"type": "geo_point"
 			},
@@ -97,8 +121,7 @@
 			},
 	
 			"refs": {
-				"type": "object",
-				"enabled": false
+				"type": "object"
 			},
 			
 			"tags": {

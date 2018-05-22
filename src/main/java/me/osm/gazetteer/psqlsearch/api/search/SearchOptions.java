@@ -9,6 +9,7 @@ public class SearchOptions {
 	
 	private boolean rangeHouseNumbers = true;
 	private boolean fuzzy = true;
+	private boolean matchStreetsWithNumbers;
 	
 	public Double getLon() {
 		return lon;
@@ -50,6 +51,13 @@ public class SearchOptions {
 	}
 	public void setFuzzy(boolean fuzzy) {
 		this.fuzzy = fuzzy;
+	}
+	
+	public boolean isMatchStreetsWithNumbers() {
+		return this.matchStreetsWithNumbers;
+	}
+	public void setMatchStreetsWithNumbers(boolean matchStreetsWithNumbers) {
+		this.matchStreetsWithNumbers = matchStreetsWithNumbers;
 	}
 	
 	

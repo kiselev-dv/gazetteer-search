@@ -2,6 +2,7 @@ package me.osm.gazetteer.psqlsearch.imp.es;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -68,12 +69,6 @@ public class ImportObjectParser {
 				
 				AddrRowWrapper subj = new AddrRowWrapper();
 				
-				// TODO
-				// admin0_name
-				// admin1_name
-				// admin2_name
-				// local_admin_name
-				
 				fillCommonField(subj, jsonObject, type, osm_type, osm_id);
 				
 				subj.setFullText(fullText);
@@ -89,15 +84,30 @@ public class ImportObjectParser {
 				subj.setStreet(streetTokens);
 				subj.setLocality(localityTokens);
 				
+				List<Token> admin0 = indexAnalyzer.normalizeLocationName(jsonObject.optString("admin0_name"));
+				subj.setAdmin0(admin0);
+				
+				List<Token> admin1 = indexAnalyzer.normalizeLocationName(jsonObject.optString("admin1_name"));
+				subj.setAdmin1(admin1);
+				
+				List<Token> admin2 = indexAnalyzer.normalizeLocationName(jsonObject.optString("admin2_name"));
+				
+				subj.setAdmin2(admin2);
+				
+				List<Token> localAdmin = indexAnalyzer.normalizeLocationName(jsonObject.optString("local_admin_name"));
+				subj.setLocalAdmin(localAdmin);
+				
 				subj.setNeighbourhood(null);
 				
 				subj.setLocalityType(getLocalityType(jsonObject));
 
 				fillLonLat(subj, jsonObject);
 				
+				
 				if (isPoi) {
 					setPoiClasses(subj, jsonObject);
 					setPoiKeywords(subj, jsonObject);
+					//more_tags
 					
 					// TODO
 					subj.setHNMatch("exact");
@@ -207,40 +217,42 @@ public class ImportObjectParser {
 	}
 
 	private void fillRefs(final AddrRowWrapper subj, JSONObject jsonObject) {
-		Map<String, String> refsMap = 
-				getJsonObjectAsKVMap(jsonObject.optJSONObject("refs"), true);
-		
-		subj.setRefs(refsMap);
-	}
-
-	@SuppressWarnings("unchecked")
-	private Map<String, String> getJsonObjectAsKVMap(JSONObject subj, boolean invertKV) {
-		Map<String, String> result = new HashMap<>();
-		
-		if (subj != null) {
-			for (Iterator<String> i = subj.keys(); i.hasNext();) {
-				String key = i.next();
-				
-				Object valueObj = subj.get(key);
-				if (valueObj instanceof JSONArray) {
-					JSONArray array = (JSONArray)valueObj;
-					if(invertKV) {
-						for (int j = 0; j < array.length(); j++) {
-							String value = array.getString(j);
-							result.put(value, key);
-						}
+		JSONObject optJSONObject = jsonObject.optJSONObject("refs");
+		if (optJSONObject != null) {
+			JSONObject refs = new JSONObject();
+			
+			for (String key : optJSONObject.keySet()) {
+				JSONArray values = new JSONArray();
+				for(String ref : asStringList(optJSONObject, key)) {
+					values.put(ref);
+					String omsId = getOSMid(ref);
+					if (omsId != null) {
+						values.put(omsId);
 					}
 				}
-				else {
-					String value = subj.getString(key);
-					if (invertKV) {
-						result.put(value, key);
-					}
-					else {
-						result.put(key, value);
-					}
+				if (values.length() > 0) {
+					refs.put(key, values);
 				}
 			}
+			
+			subj.setRefs(refs);
+		}
+		
+	}
+
+	private String getOSMid(String ref) {
+		return StringUtils.split(ref, '-')[2];
+	}
+
+	private List<String> asStringList(JSONObject obj, String key) {
+		List<String> result = new ArrayList<>();
+		
+		Object val = obj.get(key);
+		if (val instanceof JSONArray) {
+			((JSONArray)val).forEach(o -> result.add(o.toString()));
+		}
+		else if (val instanceof String) {
+			result.add((String) val);
 		}
 		
 		return result;

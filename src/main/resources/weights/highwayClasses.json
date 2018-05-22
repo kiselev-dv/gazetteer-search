@@ -14,6 +14,7 @@
 	
 	"residential":    0.85,
 	"unclassified":   0.75,
+	"road":   		  0.70,
 	"living_street":  0.70,
 	
 	"service":        0.2,
@@ -25,5 +26,13 @@
 	"steps":          0.35,
 	
 	"proposed":       0.01,
-	"construction":   0.01
+	"construction":   0.01,
+	
+	"no":             0.0,
+	"services":       0.0,
+	"raceway":        0.0,
+	"bridleway":      0.0,
+	"rest_area":      0.0,
+	"emergency_access_point": 0.0,
+	"cycleway":       0.0	
 }

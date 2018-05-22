@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Date;
+import java.util.Locale;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.io.IOUtils;
@@ -141,7 +142,7 @@ public class ESImporter {
 			throw new Error(response.buildFailureMessage());
 		}
 		
-		log.info("{} rows imported", total);
+		log.info("{} rows imported", String.format(Locale.US, "%,9d", total));
 	}
 
 	private String printDuration(long time) {

@@ -51,9 +51,13 @@ public class AddrRowWrapper {
 	private String hnMatch;
 	private List<String> poiKeywords;
 
-	private Map<String, String> refs;
+	private JSONObject refs;
 	private int nameAggIndex;
 	private String ref;
+	private List<Token> admin0;
+	private List<Token> admin1;
+	private List<Token> admin2;
+	private List<Token> localAdmin;
 
 	public void setId(String id) {
 		this.id = id;
@@ -155,8 +159,8 @@ public class AddrRowWrapper {
 		this.poiKeywords = keywords;
 	}
 
-	public void setRefs(Map<String, String> refsMap) {
-		this.refs = refsMap;
+	public void setRefs(JSONObject refs) {
+		this.refs = refs;
 	}
 
 	public String getType() {
@@ -259,7 +263,7 @@ public class AddrRowWrapper {
 		return poiKeywords;
 	}
 
-	public Map<String, String> getRefs() {
+	public JSONObject getRefs() {
 		return refs;
 	}
 
@@ -297,10 +301,15 @@ public class AddrRowWrapper {
 
 		obj.put("neighbourhood", asStringList(neighbourhood));
 		
+		obj.put("admin0", asStringList(admin0));
+		obj.put("admin1", asStringList(admin1));
+		obj.put("admin2", asStringList(admin2));
+		obj.put("local_admin", asStringList(localAdmin));
+		
 		obj.put("addr_schema", addrSchema);
 		obj.put("by_name_agg_index", nameAggIndex);
 
-		obj.put("refs", new JSONObject(refs));
+		obj.put("refs", refs);
 		
 		obj.put("poi_classes", poiClasses);
 		obj.put("poi_keywords", poiKeywords);
@@ -344,6 +353,22 @@ public class AddrRowWrapper {
 
 	public String getRef() {
 		return this.ref;
+	}
+
+	public void setAdmin0(List<Token> admin0) {
+		this.admin0 = admin0;
+	}
+	
+	public void setAdmin1(List<Token> admin1) {
+		this.admin1 = admin1;
+	}
+	
+	public void setAdmin2(List<Token> admin2) {
+		this.admin2 = admin2;
+	}
+	
+	public void setLocalAdmin(List<Token> localAdmin) {
+		this.localAdmin = localAdmin;
 	}
 	
 }
