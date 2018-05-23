@@ -13,7 +13,7 @@ public class BooleanPart implements ESQueryPart {
 	private JSONArray should;
 	
 	private JSONObject query;
-	
+
 	public BooleanPart() {
 		this.query = new JSONObject();
 		query.put(QUERY_NAME, new JSONObject());
@@ -44,6 +44,14 @@ public class BooleanPart implements ESQueryPart {
 	
 	public void addShould(JSONObject part) {
 		should.put(part);
+	}
+
+	public void setName(String name) {
+		query.getJSONObject(QUERY_NAME).put("_name", name);
+	}
+
+	public void setBoost(double boost) {
+		query.getJSONObject(QUERY_NAME).put("boost", boost);
 	}
 
 }

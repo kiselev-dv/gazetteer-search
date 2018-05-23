@@ -53,6 +53,7 @@ gztrApp.controller('SearchController',
 	
 	// query string, binded 
 	self.query = '';
+	self.prefix = true;
 	
 	$scope.$watch("search.query", function(newValue){
 		self.request(newValue);
@@ -65,7 +66,7 @@ gztrApp.controller('SearchController',
 			if (query.length > 2) {
 				searchAPI.search({
 					q: query,
-					prefix: true
+					prefix: self.prefix
 				}).then(self.queryResponse);
 			}
 		}

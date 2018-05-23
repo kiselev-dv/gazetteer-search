@@ -14,6 +14,9 @@ public class ResultsWrapper {
 	private String debug_query;
 	
 	private List<SearchResultRow> rows = new ArrayList<>();
+	private int trim;
+	private long answer_time;
+	private long query_time;
 	
 	public static final class SearchResultRow {
 		public double rank;
@@ -68,6 +71,18 @@ public class ResultsWrapper {
 
 	public void setDebugQuery(String string) {
 		this.debug_query = string;
+	}
+
+	public void setTrim(int trim) {
+		this.trim = trim;
+	}
+
+	public void setAnswerTime(long l) {
+		this.answer_time = l;
+	}
+
+	public void setQueryTime(long queryTime) {
+		this.query_time = queryTime;
 	}
 	
 }

@@ -15,27 +15,28 @@ public class ESCoalesce {
 	
 	private List<JSONObject> queries;
 	private JSONObject lastQ;
-	private int from;
-	private int size;
+	private String[] fetchSourceInclude;
+	private long queryTime = 0;
 
-	public ESCoalesce(List<JSONObject> queries, int from, int size) {
+	public ESCoalesce(List<JSONObject> queries, String[] fetchSourceInclude) {
 		this.queries = queries;
-		this.from = from;
-		this.size = size;
+		this.fetchSourceInclude = fetchSourceInclude;
 	}
 
-	public SearchResponse execute() {
+	public SearchResponse execute(int from, int size) {
 		SearchResponse response = null;
-		
 		for (JSONObject q : queries) {
 			this.lastQ = q;
 			response = ESServer.getInstance().client()
 					.prepareSearch(AddressesIndexHolder.INDEX_NAME)
 					.addSort(SortBuilders.scoreSort().order(SortOrder.DESC))
 					.setTypes(AddressesIndexHolder.ADDR_ROW_TYPE)
+					.setFetchSource(fetchSourceInclude, new String[] {})
 					.setQuery(QueryBuilders.wrapperQuery(q.toString()))
 					.setFrom(from).setSize(size)
 					.get();
+			
+			this.queryTime += response.getTook().getMillis();
 			
 			if (accepted(response)) {
 				return response;
@@ -52,6 +53,10 @@ public class ESCoalesce {
 
 	public JSONObject getExecutedQuery() {
 		return lastQ;
+	}
+	
+	public long getQueryTime() {
+		return queryTime;
 	}
 
 }

@@ -7,30 +7,33 @@ import org.json.JSONObject;
 
 public class MatchPart implements ESQueryPart {
 
-	private List<String> terms;
+	private Iterable<String> terms;
 	private String field;
 	private Double boost;
 	private String fuzziness;
 	private String name;
+	private int minimumShouldMatch;
 
 
-	public MatchPart(String field, List<String> terms) {
+	public MatchPart(String field, Iterable<String> terms) {
 		this.field = field;
 		this.terms = terms;
 	}
 	
-	public MatchPart(String field, List<String> terms, double boost) {
+	public MatchPart(String field, Iterable<String> terms, double boost) {
 		this.field = field;
 		this.terms = terms;
 		this.boost = boost;
 	}
 	
-	public void setBoost(Double boost) {
+	public MatchPart setBoost(Double boost) {
 		this.boost = boost;
+		return this;
 	}
 
-	public void setFuzziness(String fuzziness) {
+	public MatchPart setFuzziness(String fuzziness) {
 		this.fuzziness = fuzziness;
+		return this;
 	}
 
 	@Override
@@ -53,11 +56,21 @@ public class MatchPart implements ESQueryPart {
 			q.put("_name", name);
 		}
 		
+		if (minimumShouldMatch > 0) {
+			q.put("minimum_should_match", minimumShouldMatch);
+		}
+		
 		return obj;
 	}
 
-	public void setName(String name) {
+	public MatchPart setName(String name) {
 		this.name = name;
+		return this;
+	}
+
+	public MatchPart setMinimumShouldMatch(int i) {
+		this.minimumShouldMatch = i;
+		return this;
 	}
 
 }

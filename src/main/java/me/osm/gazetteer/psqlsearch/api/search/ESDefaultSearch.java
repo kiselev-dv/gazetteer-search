@@ -2,10 +2,12 @@ package me.osm.gazetteer.psqlsearch.api.search;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.search.SearchHit;
@@ -27,6 +29,10 @@ import me.osm.gazetteer.psqlsearch.query.QueryAnalyzer;
 import me.osm.gazetteer.psqlsearch.query.QueryAnalyzerImpl;
 
 public class ESDefaultSearch implements Search {
+
+	private static final String MATCH_STREET_QUERY_NAME = "match_street";
+
+	private static final String MATCH_LOCALITY_QUERY_NAME = "match_locality";
 
 	private QueryAnalyzer analyzer = new QueryAnalyzerImpl();
 
@@ -65,11 +71,13 @@ public class ESDefaultSearch implements Search {
 		public static final String ONLY_ADDR_POINTS = "onlyAddrPoints";
 		public static final String STREETS_WITH_NUMBERS = "streetsWithNumbers";
 		public static final String HOUSNUMBERS_RANGE = "housenumbersRange";
+		public static final String STREET_OR_LOCALITY = "streetOrLocality";
 
 		public boolean onlyAddrPoints = false;
 		public boolean fuzzy = false;
 		public boolean streetsWithNumbers = false;
 		public boolean housenumbersRange = false;
+		public boolean streetOrLocality = false;
 		
 		public static QueryBuilderFlags getFlags(String ... flags ) {
 			HashSet<String> set = new HashSet<>(Arrays.asList(flags));
@@ -79,6 +87,8 @@ public class ESDefaultSearch implements Search {
 			f.onlyAddrPoints = set.contains(ONLY_ADDR_POINTS);
 			f.streetsWithNumbers = set.contains(STREETS_WITH_NUMBERS);
 			f.housenumbersRange = set.contains(HOUSNUMBERS_RANGE);
+			f.streetOrLocality = set.contains(STREET_OR_LOCALITY);
+			
 			
 			return f;
 		}
@@ -86,7 +96,9 @@ public class ESDefaultSearch implements Search {
 	
 	@Override
 	public ResultsWrapper search(String queryString, int page, int pageSize, SearchOptions options) {
-
+		
+		long startms = new Date().getTime();
+		
 		Query query = analyzer.getQuery(queryString);
 		List<QToken> tokens = query.listToken();
 		
@@ -98,52 +110,57 @@ public class ESDefaultSearch implements Search {
 		if (options.isWithPrefix() && !queryString.endsWith(" ")) {
 			prefixT = query.findPrefix();
 		}
-		
+
 		List<QToken> numberTokens = new ArrayList<>();
 		List<QToken> optionalTokens = new ArrayList<>();
 		List<QToken> requiredTokens = new ArrayList<>();
 		List<String> requiredVariants = new ArrayList<>();
-		List<String> allRequired = new ArrayList<>();
+		List<String> allRequiredTokenStrings = new ArrayList<>();
 		
 		tokens.stream().filter(t -> t.isHasNumbers()).forEach(numberTokens::add);
 		tokens.stream().filter(t -> t.isOptional() && !t.isHasNumbers()).forEach(optionalTokens::add);
 		tokens.stream().filter(t -> !t.isOptional() && !t.isHasNumbers()).forEach(t -> {
 			requiredTokens.add(t);
-			allRequired.add(t.toString());
+			allRequiredTokenStrings.add(t.toString());
 
 			if(t.isFuzzied()) {
 				requiredVariants.addAll(t.getVariants());
-				allRequired.addAll(t.getVariants());
+				allRequiredTokenStrings.addAll(t.getVariants());
 			}
 		});
 		
 
 		List<JSONObject> coallesceQueries = new ArrayList<>();
 		
-		coallesceQueries.add(buildQuery(
+		BooleanPart q1 = buildQuery(
 				query, numberTokens, 
 				optionalTokens, requiredTokens,
-				allRequired, prefixT, 
-				QueryBuilderFlags.getFlags(QueryBuilderFlags.ONLY_ADDR_POINTS)).getPart());
+				allRequiredTokenStrings, prefixT, 
+				QueryBuilderFlags.getFlags(QueryBuilderFlags.ONLY_ADDR_POINTS, QueryBuilderFlags.FUZZY));
+		q1.setName("fuzzy_only_addrpnt");
+		coallesceQueries.add(q1.getPart());
 		
-		coallesceQueries.add(buildQuery(query, numberTokens, optionalTokens, requiredTokens,
-				allRequired, prefixT, QueryBuilderFlags.getFlags(QueryBuilderFlags.FUZZY, QueryBuilderFlags.ONLY_ADDR_POINTS)).getPart());
+		BooleanPart q2 = buildQuery(query, numberTokens, optionalTokens, requiredTokens,
+				allRequiredTokenStrings, prefixT, QueryBuilderFlags.getFlags(
+						QueryBuilderFlags.FUZZY, QueryBuilderFlags.STREET_OR_LOCALITY));
+		q2.setName("fuzzy_street_or_locality");
+		coallesceQueries.add(q2.getPart());
 		
-		coallesceQueries.add(buildQuery(query, numberTokens, optionalTokens, requiredTokens,
-				allRequired, prefixT, QueryBuilderFlags.getFlags(QueryBuilderFlags.FUZZY, QueryBuilderFlags.STREETS_WITH_NUMBERS)).getPart());
-		
-		ESCoalesce coalesce = new ESCoalesce(coallesceQueries, 0, 10);
+		ESCoalesce coalesce = new ESCoalesce(coallesceQueries, new String[] {"full_text", "osm_id", "name", "base_score", "type"});
 		
 		ResultsWrapper results = new ResultsWrapper(queryString, page, pageSize);
 		results.setParsedQuery(query.print());
 		
 		try {
-			SearchResponse response = coalesce.execute();
-			results.setDebugQuery(coalesce.getExecutedQuery().toString(2));
-
-			results.setTotalHits(response.getHits().totalHits);
+			SearchResponse response = coalesce.execute(0, 100);
+			int trim = trimResponse(response);
 			
-			writeHits(results, response);
+			results.setDebugQuery(coalesce.getExecutedQuery().toString(2));
+			results.setTotalHits(response.getHits().totalHits);
+			results.setTrim(trim);
+			results.setQueryTime(coalesce.getQueryTime());
+			
+			writeHits(results, response, trim);
 			
 		}
 		catch (Exception e) {
@@ -151,7 +168,26 @@ public class ESDefaultSearch implements Search {
 			e.printStackTrace();
 		}
 		
+		results.setAnswerTime(new Date().getTime() - startms);
+		
 		return results;
+	}
+
+	private int trimResponse(SearchResponse response) {
+		
+		int index = 0;
+		for (SearchHit hit : response.getHits()) {
+			Set<String> matchedQueries = new HashSet<>(Arrays.asList(hit.getMatchedQueries()));
+			Map<String, Object> sourceAsMap = hit.getSourceAsMap();
+			String type = sourceAsMap.get("type").toString();
+			boolean isHighway = "hghway".equals(type) || "hghnet".equals(type);
+			if (matchedQueries.contains(MATCH_LOCALITY_QUERY_NAME) && !matchedQueries.contains(MATCH_STREET_QUERY_NAME) && isHighway) {
+				return index - 1;
+			}
+			index ++;
+		}
+		
+		return index;
 	}
 
 	private BooleanPart buildQuery(Query query, List<QToken> numberTokens,
@@ -176,14 +212,12 @@ public class ESDefaultSearch implements Search {
 		
 		BooleanPart mainBooleanPart = new BooleanPart();
 		
-		if (!requiredTokens.isEmpty()) {
-			JSONObject multimatch = buildMultyMatchQuery(
-					requiredTokens, prefixT, numberTokens, 
-					flags.fuzzy, flags.streetsWithNumbers);
-			
-			mainBooleanPart.addMust(multimatch);
-		}
+		JSONObject localityAndStreet = buildMultyMatchQuery(
+				requiredTokens, prefixT, numberTokens, 
+				flags.fuzzy, flags.streetsWithNumbers, !flags.streetOrLocality);
 		
+		mainBooleanPart.addMust(localityAndStreet);
+			
 		if (housenumber != null) {
 			if(flags.onlyAddrPoints) {
 				mainBooleanPart.addMust(housenumber);
@@ -221,102 +255,99 @@ public class ESDefaultSearch implements Search {
 			mainBooleanPart.addShould(namePart);
 		}
 		
-		mainBooleanPart.addShould(new MatchPart("admin0", allRequired));
-		mainBooleanPart.addShould(new MatchPart("admin1", allRequired));
-		mainBooleanPart.addShould(new MatchPart("admin2", allRequired));
-		mainBooleanPart.addShould(new MatchPart("local_admin", allRequired));
+		mainBooleanPart.addShould(new MatchPart("admin0", allRequired).setName("admin0").setBoost(1.2));
+		mainBooleanPart.addShould(new MatchPart("admin1", allRequired).setName("admin1"));
+		mainBooleanPart.addShould(new MatchPart("admin2", allRequired).setName("admin2"));
+		mainBooleanPart.addShould(new MatchPart("local_admin", allRequired).setName("local_admin"));
 		
 		return mainBooleanPart;
 	}
 
 	private JSONObject buildMultyMatchQuery(List<QToken> requiredTokens, QToken prefixT, 
-			List<QToken> numberTokens, boolean fuzzy, boolean addNumberTokensToStreets) {
+			List<QToken> numberTokens, boolean fuzzy, boolean addNumberTokensToStreets, 
+			boolean allMustMatch) {
 		
-		JSONArray termTopQArray = new JSONArray();
-		
-		JSONObject multimatch = new JSONObject().put("bool", new JSONObject()
-				.put("should", termTopQArray)
-				.put("_name", "required_terms"));
+		BooleanPart multimatch = new BooleanPart();
+		multimatch.setName("required_terms");
 
-		int tokenCounter = 0;
+		Set<String> tokenStrings = new HashSet<>();
+		requiredTokens.stream().forEach(t -> {
+			tokenStrings.add(t.toString());
+			if (t.isFuzzied()) {
+				tokenStrings.addAll(t.getVariants());
+			}
+		});
 		
-		for (QToken qtoken : requiredTokens) {
-			addToken(fuzzy, termTopQArray, qtoken, Arrays.asList("locality", "street"), mainMatchFuzzyBoost);
-			tokenCounter++;
+		ESQueryPart streetMatch = new MatchPart("street", tokenStrings);
+		((MatchPart) streetMatch).setName(MATCH_STREET_QUERY_NAME);
+		if (fuzzy) {
+			((MatchPart) streetMatch).setFuzziness("1");
 		}
-		
 		if (prefixT != null) {
-			
-			Prefix localityPrefix = new Prefix(prefixT.toString(), "locality");
-			localityPrefix.setName("locality_prefix:" + prefixT.toString());
 			Prefix streetPrefix = new Prefix(prefixT.toString(), "street");
 			streetPrefix.setName("street_prefix:" + prefixT.toString());
 			
-			JSONArray termOverFieldsShould = new JSONArray()
-					.put(localityPrefix.getPart())
-					.put(streetPrefix.getPart());
+			BooleanPart or = new BooleanPart();
+			or.addShould(streetMatch);
+			or.addShould(streetPrefix);
 			
-			termTopQArray.put(new JSONObject().put("bool", 
-					new JSONObject().put("should", termOverFieldsShould)));
-			
-			tokenCounter++;
+			if (tokenStrings.isEmpty()) {
+				streetMatch = streetPrefix;
+			}
+			else {
+				streetMatch = or;
+			}
+		}
+		if (allMustMatch) {
+			multimatch.addMust(streetMatch);
+		}
+		else {
+			multimatch.addShould(streetMatch);
 		}
 		
 		if (addNumberTokensToStreets) {
 			for (QToken qtoken : numberTokens) {
 				if (qtoken.isFuzzied() && !qtoken.isNumbersOnly()) {
-					addToken(false, termTopQArray, qtoken, Arrays.asList("street"), 0.0);
-					tokenCounter++;
+					multimatch.addMust(new MatchPart("street", qtoken.getVariants()));
 				}
 			}
 		}
 		
-		int shouldMatch = tokenCounter;
-		if (tokenCounter > 2) {
-			shouldMatch = 2;
+		ESQueryPart localityMatch = new MatchPart("locality", tokenStrings);
+		((MatchPart) localityMatch).setName(MATCH_LOCALITY_QUERY_NAME);
+		if (fuzzy) {
+			((MatchPart) localityMatch).setFuzziness("1");
 		}
-		if (tokenCounter > 4) {
-			shouldMatch = (int)(1.0 * tokenCounter * 0.6);
+		if (prefixT != null) {
+			Prefix localityPrefix = new Prefix(prefixT.toString(), "locality");
+			localityPrefix.setName("locality_prefix:" + prefixT.toString());
+			
+			BooleanPart or = new BooleanPart();
+			or.addShould(localityMatch);
+			or.addShould(localityPrefix);
+			
+			if (tokenStrings.isEmpty()) {
+				localityMatch = localityPrefix;
+			}
+			else {
+				localityMatch = or;
+			}
 		}
-		
-		multimatch.getJSONObject("bool").put("minimum_should_match", shouldMatch);
-		
+		if (allMustMatch) {
+			multimatch.addMust(localityMatch);
+		}
+		else {
+			multimatch.addShould(localityMatch);
+		}
+
 		Map<String, Object> parameters = new HashMap<>();
 		parameters.put("adrpnt_boost", mainMatchAdrpntBoost);
+		parameters.put("plcpnt_boost", 100.0);
 		
-		String script = "_score * (doc['type'].value == 'adrpnt' ? params.adrpnt_boost : 1.0)";
+		String script = "_score * (doc['type'].value == 'adrpnt' ? params.adrpnt_boost : 1.0) * (doc['type'].value == 'plcpnt' ? params.plcpnt_boost : 1.0)";
 		
 		return new CustomScore(multimatch, script, parameters).getPart();
 		
-	}
-
-	private void addToken(boolean fuzzy, JSONArray termTopQArray, QToken qtoken, Iterable<String> fields, double fuzzyBoost) {
-		String token = qtoken.toString();
-		
-		List<String> tokenValues = new ArrayList<>(Arrays.asList(token));
-		if (qtoken.isFuzzied()) {
-			tokenValues.addAll(qtoken.getVariants());
-		}
-		
-		JSONArray termOverFieldsShould = new JSONArray();
-		
-		for(String field : fields) {
-			MatchPart matchField = new MatchPart(field, tokenValues);
-			matchField.setName(field + "_token:" + token);
-			termOverFieldsShould.put(matchField.getPart());
-		
-			if (fuzzy) {
-				matchField.setFuzziness("1");
-				matchField.setName(field + "_token_fuzzy:" + token);
-				matchField.setBoost(fuzzyBoost);
-				
-				termOverFieldsShould.put(matchField.getPart());
-			}
-			
-		}
-		
-		termTopQArray.put(new JSONObject().put("bool", 
-				new JSONObject().put("should", termOverFieldsShould)));
 	}
 
 	private JSONObject buildHousenumberQ(boolean rangeHouseNumbers, List<QToken> numberTokens) {
@@ -350,10 +381,9 @@ public class ESDefaultSearch implements Search {
 		return housenumber;
 	}
 
-	private void writeHits(ResultsWrapper results, SearchResponse response) {
-		
-		for(SearchHit hit : response.getHits()) {
-			writeHit(results, hit);
+	private void writeHits(ResultsWrapper results, SearchResponse response, int trim) {
+		for (int i = 0; i < trim && i < response.getHits().totalHits; i++) {
+			writeHit(results, response.getHits().getAt(i));
 		}
 	}
 
