@@ -63,7 +63,7 @@ public class DeafultSearch implements Search {
 		try {
 			List<StandardSearchQueryRow> results = standardSearchQuery.listResults();
 			for (StandardSearchQueryRow row : results) {
-				result.addResultsRow(row.getRank(), 0.0, row.getFullText(), row.getOsmId(), null);
+				result.addResultsRow(row.getRank(), 0.0, row.getFullText(), row.getOsmId(),null, null);
 			}
 			
 		} catch (Exception e) {

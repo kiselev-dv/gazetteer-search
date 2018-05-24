@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.search.SearchHit;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -146,13 +147,13 @@ public class ESDefaultSearch implements Search {
 		q2.setName("fuzzy_street_or_locality");
 		coallesceQueries.add(q2.getPart());
 		
-		ESCoalesce coalesce = new ESCoalesce(coallesceQueries, new String[] {"full_text", "osm_id", "name", "base_score", "type"});
+		ESCoalesce coalesce = new ESCoalesce(coallesceQueries, new String[] {"full_text", "osm_id", "name", "base_score", "type", "centroid"});
 		
 		ResultsWrapper results = new ResultsWrapper(queryString, page, pageSize);
 		results.setParsedQuery(query.print());
 		
 		try {
-			SearchResponse response = coalesce.execute(0, 100);
+			SearchResponse response = coalesce.execute(0, 20);
 			int trim = trimResponse(response);
 			
 			results.setDebugQuery(coalesce.getExecutedQuery().toString(2));
@@ -180,10 +181,26 @@ public class ESDefaultSearch implements Search {
 			Set<String> matchedQueries = new HashSet<>(Arrays.asList(hit.getMatchedQueries()));
 			Map<String, Object> sourceAsMap = hit.getSourceAsMap();
 			String type = sourceAsMap.get("type").toString();
+			
+			boolean localityMatched = matchedQueries.contains(MATCH_LOCALITY_QUERY_NAME);
+			localityMatched = localityMatched || matchedQueries.stream().filter(s -> s.startsWith("locality_prefix")).findAny().isPresent();
+
+			boolean streetMatched = matchedQueries.contains(MATCH_STREET_QUERY_NAME);
+			streetMatched = streetMatched || matchedQueries.stream().filter(s -> s.startsWith("street_prefix")).findAny().isPresent();
+			
 			boolean isHighway = "hghway".equals(type) || "hghnet".equals(type);
-			if (matchedQueries.contains(MATCH_LOCALITY_QUERY_NAME) && !matchedQueries.contains(MATCH_STREET_QUERY_NAME) && isHighway) {
-				return index - 1;
+			boolean isAddress = "adrpnt".equals(type);
+
+			boolean houseumberMatched = matchedQueries.contains("housenumber_match");
+			
+			if (localityMatched && !streetMatched && isHighway) {
+				return index;
 			}
+			
+			if (localityMatched && streetMatched && !houseumberMatched && isAddress) {
+				return index;
+			}
+			
 			index ++;
 		}
 		
@@ -238,7 +255,7 @@ public class ESDefaultSearch implements Search {
 			// Get distinct by name values
 			mainBooleanPart.addMust(new DistinctNameFilter());
 		}
-		else if (flags.onlyAddrPoints) {
+		else if (flags.onlyAddrPoints && housenumber != null) {
 			mainBooleanPart.addMust(
 					new TermsPart("type", Arrays.asList("adrpnt")));
 		}
@@ -266,6 +283,8 @@ public class ESDefaultSearch implements Search {
 	private JSONObject buildMultyMatchQuery(List<QToken> requiredTokens, QToken prefixT, 
 			List<QToken> numberTokens, boolean fuzzy, boolean addNumberTokensToStreets, 
 			boolean allMustMatch) {
+		
+		allMustMatch = allMustMatch && !requiredTokens.isEmpty();
 		
 		BooleanPart multimatch = new BooleanPart();
 		multimatch.setName("required_terms");
@@ -343,8 +362,12 @@ public class ESDefaultSearch implements Search {
 		Map<String, Object> parameters = new HashMap<>();
 		parameters.put("adrpnt_boost", mainMatchAdrpntBoost);
 		parameters.put("plcpnt_boost", 100.0);
+		parameters.put("ref_boost", 0.005);
 		
-		String script = "_score * (doc['type'].value == 'adrpnt' ? params.adrpnt_boost : 1.0) * (doc['type'].value == 'plcpnt' ? params.plcpnt_boost : 1.0)";
+		String script = "_score * "
+				+ "(doc['type'].value == 'adrpnt' ? params.adrpnt_boost : 1.0) * "
+				+ "(doc['type'].value == 'plcpnt' ? params.plcpnt_boost : 1.0) * "
+				+ "(doc['ref'].value != null ? params.ref_boost : 1.0)";
 		
 		return new CustomScore(multimatch, script, parameters).getPart();
 		
@@ -378,6 +401,10 @@ public class ESDefaultSearch implements Search {
 			
 		}
 		
+		if (housenumber != null) {
+			housenumber.getJSONObject(housenumber.keys().next()).put("_name", "housenumber_match"); 
+		}
+		
 		return housenumber;
 	}
 
@@ -392,13 +419,14 @@ public class ESDefaultSearch implements Search {
 		Double baseScore = Double.valueOf(sourceAsMap.get("base_score").toString());
 		
 		String resultFullText = sourceAsMap.get("full_text").toString();
-		String resultName = sourceAsMap.get("name").toString();
+		Map<?,?> centoidfield = (Map<?, ?>) sourceAsMap.get("centroid");
 		
 		results.addResultsRow(
 				hit.getScore(),
 				baseScore,
-				resultName + " (" + resultFullText + ")", 
+				resultFullText, 
 				sourceAsMap.get("osm_id").toString(),
+				new GeoPoint((double)centoidfield.get("lat"), (double)centoidfield.get("lon")),
 				hit.getMatchedQueries());
 	}
 	

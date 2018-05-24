@@ -1,0 +1,25 @@
+{
+	"_source": [
+		"full_text",
+		"id",
+		"name",
+		"admin0",
+		"admin1",
+		"admin2",
+		"local_admin"
+	],
+	"query": {
+		"bool": {
+			"must":[
+				{"term": {"type": "admbnd"}},
+				{"exists": {"field": "name"}}
+			],
+			"must_not": [
+				{"exists": {"field":"admin1"}},
+				{"exists": {"field":"admin2"}},
+				{"exists": {"field":"local_admin"}}
+			]
+		}
+	},
+	"size": 10
+}
