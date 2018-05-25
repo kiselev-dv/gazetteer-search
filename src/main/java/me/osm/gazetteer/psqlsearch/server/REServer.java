@@ -1,7 +1,13 @@
 package me.osm.gazetteer.psqlsearch.server;
 
+import java.io.File;
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.restexpress.RestExpress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +49,17 @@ public class REServer {
 		server.bind(getPort());
 		
 		log.info("Listen on port: {}", getPort());
+		
+		long pid = Long.valueOf(StringUtils.substringBefore(ManagementFactory.getRuntimeMXBean().getName(), "@"));
+		log.info("PID {}", pid);
+
+		File pidFile = new File("gazetteer-search.pid");
+		try {
+			FileUtils.writeStringToFile(pidFile, String.valueOf(pid));
+		} catch (IOException e) {
+			log.warn("Can't save pid to file {}", pidFile);
+			e.printStackTrace();
+		}
 
 		server.awaitShutdown();
 	}
