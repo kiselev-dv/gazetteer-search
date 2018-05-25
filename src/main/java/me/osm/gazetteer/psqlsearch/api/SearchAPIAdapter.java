@@ -22,9 +22,9 @@ public class SearchAPIAdapter implements SearchAPI {
 	private static final String PAGE_PARAM = "page";
 	private static final String PAGE_SIZE = "size";
 
-	private static final String LAT_PARAM = "center_lat";
+	private static final String LAT_PARAM = "lat";
 
-	private static final String LON_PARAM = "center_lon";
+	private static final String LON_PARAM = "lon";
 	
 	@Inject
 	private Search search;

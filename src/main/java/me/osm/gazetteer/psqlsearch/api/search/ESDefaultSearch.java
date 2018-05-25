@@ -150,6 +150,10 @@ public class ESDefaultSearch implements Search {
 		
 		ESCoalesce coalesce = new ESCoalesce(coallesceQueries, SOURCE_FIELDS);
 		
+		if (options.getLat() != null && options.getLon() != null) {
+			coalesce.setDistanceSort(options.getLat(), options.getLon());
+		}
+		
 		ResultsWrapper results = new ResultsWrapper(queryString, page, pageSize);
 		results.setParsedQuery(query.print());
 		

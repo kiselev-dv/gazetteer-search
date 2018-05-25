@@ -9,7 +9,8 @@
       <input type="text" ng-model="search.query" 
       	placeholder="Address..." style="width: 100%; height: 25px;">
       <div>{{search.result.parsed_query}}</div>
-      Prefix <input type="checkbox" ng-model="search.prefix"></input>
+      <label>Prefix<label><input type="checkbox" ng-model="search.prefix"></input>
+      <label>Lat/Lon<label><input ng-model="search.latlon"></input><button ng-click="geolocate()">locate</button>
       <hr>
       <div style="margin-top: 10px;" ng-repeat="row in search.result.rows | trim:search.result.trim">
       	<div>

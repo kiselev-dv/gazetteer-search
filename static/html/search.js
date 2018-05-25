@@ -114,7 +114,8 @@ gztrApp.filter('trim', function() {
 });
 
 gztrApp.controller('SearchController', 
-		['$scope', 'gztrThrottle', 'gztrSearch', function($scope, throttle, searchAPI) {
+		['$scope', 'gztrThrottle', 'gztrSearch', 
+			function($scope, throttle, searchAPI) {
 
 	$scope.link4OSMId = function(osmId) {
 		var t = osmId.substring(0, 1);
@@ -127,6 +128,16 @@ gztrApp.controller('SearchController',
 	 * Query the searach API, throttling the queries 
 	 */
 	var self = this;
+	
+	$scope.geolocate = function() {
+		navigator.geolocation.getCurrentPosition(function(position) {
+			$scope.$apply(function() {
+				var lat = Math.round(position.coords.latitude * 10000) / 10000;
+				var lon = Math.round(position.coords.longitude * 10000) / 10000;
+				self.latlon =  lat + '/' + lon;
+			});
+		});
+	}
 	
 	// query string, binded 
 	self.query = '';
@@ -149,12 +160,20 @@ gztrApp.controller('SearchController',
 			var split = query.split(' ');
 			var last = split[split.length - 1];
 			
+			var params = {
+				q: query,
+				prefix: self.prefix,
+				mark: self.requestCounter
+			};
+			
+			if (self.latlon) {
+				var ll = self.latlon.split(/[\/ ,]/);
+				params['lat'] = parseFloat(ll[0]);
+				params['lon'] = parseFloat(ll[1]);
+			}
+			
 			if (query.length > 2 && last.length > 1 || /\d/.test(last)) {
-				throttle.submit({
-					q: query,
-					prefix: self.prefix,
-					mark: self.requestCounter
-				});
+				throttle.submit(params);
 			}
 		}
 	};
