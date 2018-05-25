@@ -2,6 +2,7 @@ package me.osm.gazetteer.psqlsearch.api;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.elasticsearch.common.geo.GeoPoint;
 import org.json.JSONObject;
@@ -20,6 +21,7 @@ public class ResultsWrapper {
 	private int trim;
 	private long answer_time;
 	private long query_time;
+	private String mark;
 	
 	public static final class SearchResultRow {
 		public double rank;
@@ -28,6 +30,8 @@ public class ResultsWrapper {
 		public double base_score;
 		public String[] matched_queries;
 		public GeoPoint centroid;
+		public Map address;
+		public String name;
 	}
 	
 	public ResultsWrapper() {
@@ -40,15 +44,22 @@ public class ResultsWrapper {
 		this.pageSize = pageSize;
 	}
 
-	public void addResultsRow(double rank, double baseScore, String fullText, String osmId, GeoPoint geoPoint, String[] matchedQueries) {
+	public void addResultsRow(double rank, double baseScore, 
+			String name, Map addressAsMap, String fullText, String osmId, 
+			GeoPoint geoPoint, String[] matchedQueries) {
+		
 		SearchResultRow row = new SearchResultRow();
 		
+		row.name = name;
+
 		row.rank = rank;
 		row.full_text = fullText;
 		row.osm_id = osmId;
 		row.base_score = baseScore;
 		row.matched_queries = matchedQueries;
 		row.centroid = geoPoint;
+		
+		row.address = addressAsMap;
 				
 		rows.add(row);
 	}
@@ -88,6 +99,10 @@ public class ResultsWrapper {
 
 	public void setQueryTime(long queryTime) {
 		this.query_time = queryTime;
+	}
+
+	public void setMark(String mark) {
+		this.mark = mark;
 	}
 	
 }

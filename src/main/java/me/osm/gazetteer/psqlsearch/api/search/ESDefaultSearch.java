@@ -31,6 +31,10 @@ import me.osm.gazetteer.psqlsearch.query.QueryAnalyzerImpl;
 
 public class ESDefaultSearch implements Search {
 
+	private static final String[] SOURCE_FIELDS = new String[] {
+			"full_text", "osm_id", "json.name", "base_score", "type", "centroid", "id", 
+			"json.address"};
+
 	private static final String MATCH_STREET_QUERY_NAME = "match_street";
 
 	private static final String MATCH_LOCALITY_QUERY_NAME = "match_locality";
@@ -48,8 +52,6 @@ public class ESDefaultSearch implements Search {
 	private static double prefixPlcpntBoost = 5.0;
 	private static double prefixRefBoost = 0.005;
 
-	private static double mainMatchFuzzyBoost = 0.75;
-	
 	private static final String prefixScoreScript = 
 			  "params.scale * "
 			+ "doc['base_score'].value / "
@@ -89,7 +91,6 @@ public class ESDefaultSearch implements Search {
 			f.streetsWithNumbers = set.contains(STREETS_WITH_NUMBERS);
 			f.housenumbersRange = set.contains(HOUSNUMBERS_RANGE);
 			f.streetOrLocality = set.contains(STREET_OR_LOCALITY);
-			
 			
 			return f;
 		}
@@ -147,7 +148,7 @@ public class ESDefaultSearch implements Search {
 		q2.setName("fuzzy_street_or_locality");
 		coallesceQueries.add(q2.getPart());
 		
-		ESCoalesce coalesce = new ESCoalesce(coallesceQueries, new String[] {"full_text", "osm_id", "name", "base_score", "type", "centroid"});
+		ESCoalesce coalesce = new ESCoalesce(coallesceQueries, SOURCE_FIELDS);
 		
 		ResultsWrapper results = new ResultsWrapper(queryString, page, pageSize);
 		results.setParsedQuery(query.print());
@@ -161,7 +162,7 @@ public class ESDefaultSearch implements Search {
 			results.setTrim(trim);
 			results.setQueryTime(coalesce.getQueryTime());
 			
-			writeHits(results, response, trim);
+			writeHits(results, response);
 			
 		}
 		catch (Exception e) {
@@ -408,12 +409,13 @@ public class ESDefaultSearch implements Search {
 		return housenumber;
 	}
 
-	private void writeHits(ResultsWrapper results, SearchResponse response, int trim) {
-		for (int i = 0; i < trim && i < response.getHits().totalHits; i++) {
-			writeHit(results, response.getHits().getAt(i));
+	private void writeHits(ResultsWrapper results, SearchResponse response) {
+		for (SearchHit hit : response.getHits()) {
+			writeHit(results, hit);
 		}
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void writeHit(ResultsWrapper results, SearchHit hit) {
 		Map<String, Object> sourceAsMap = hit.getSourceAsMap();
 		Double baseScore = Double.valueOf(sourceAsMap.get("base_score").toString());
@@ -421,9 +423,14 @@ public class ESDefaultSearch implements Search {
 		String resultFullText = sourceAsMap.get("full_text").toString();
 		Map<?,?> centoidfield = (Map<?, ?>) sourceAsMap.get("centroid");
 		
+		Map addressAsMap = (Map) ((Map<String, ?>)sourceAsMap.get("json")).get("address");
+		String name = (String) ((Map<String, ?>)sourceAsMap.get("json")).get("name");
+		
 		results.addResultsRow(
 				hit.getScore(),
 				baseScore,
+				name,
+				addressAsMap,
 				resultFullText, 
 				sourceAsMap.get("osm_id").toString(),
 				new GeoPoint((double)centoidfield.get("lat"), (double)centoidfield.get("lon")),

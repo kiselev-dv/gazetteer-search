@@ -31,7 +31,7 @@ public class ESCoalesce {
 					.prepareSearch(AddressesIndexHolder.INDEX_NAME)
 					.addSort(SortBuilders.scoreSort().order(SortOrder.DESC))
 					.setTypes(AddressesIndexHolder.ADDR_ROW_TYPE)
-					.setFetchSource(fetchSourceInclude, new String[] {})
+					.setFetchSource(fetchSourceInclude, new String[] {"json.address.parts.names"})
 					.setQuery(QueryBuilders.wrapperQuery(q.toString()))
 					.setFrom(from).setSize(size)
 					.get();

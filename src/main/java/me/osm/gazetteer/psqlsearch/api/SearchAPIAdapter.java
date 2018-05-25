@@ -46,7 +46,15 @@ public class SearchAPIAdapter implements SearchAPI {
 		
 		log.info("search {}", query);
 		
-		return search.search(query, page, pageSize, searchOptions);
+		String mark = request.getHeader("mark");
+		
+		ResultsWrapper res = search.search(query, page, pageSize, searchOptions);
+		
+		if (res != null) {
+			res.setMark(mark);
+		}
+		
+		return res;
 	}
 
 	private boolean getBoolean(Request request, String header, boolean defValue) {

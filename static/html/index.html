@@ -11,9 +11,9 @@
       <div>{{search.result.parsed_query}}</div>
       Prefix <input type="checkbox" ng-model="search.prefix"></input>
       <hr>
-      <div style="margin-top: 10px;" ng-repeat="row in search.result.rows">
+      <div style="margin-top: 10px;" ng-repeat="row in search.result.rows | trim:search.result.trim">
       	<div>
-      		<div ng-bind="row.full_text"></div>
+      		<div ng-bind="row.address.text"></div>
       		<div>
       		<span ng-bind="row.rank"></span>
       		<a href="{{link4OSMId(row.osm_id)}}" ng-bind="row.osm_id"></a>
