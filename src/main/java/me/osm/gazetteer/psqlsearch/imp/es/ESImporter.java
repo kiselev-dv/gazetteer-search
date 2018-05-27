@@ -5,7 +5,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.util.Date;
 import java.util.Locale;
 import java.util.zip.GZIPInputStream;
@@ -24,6 +26,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import me.osm.gazetteer.psqlsearch.PSQLSearch.ImportOptions;
 import me.osm.gazetteer.psqlsearch.esclient.AddressesIndexHolder;
 import me.osm.gazetteer.psqlsearch.esclient.ESServer;
 
@@ -31,9 +34,11 @@ public class ESImporter {
 	
 	private static final Logger log = LoggerFactory.getLogger(ESImporter.class);
 	
+	private ImportOptions options;
+
 	private int batchSize = 1000;
 	private int total = 0;
-	private String source;
+	private int skip = 0;
 
 	private int addresses = 0;
 
@@ -57,15 +62,19 @@ public class ESImporter {
 		private static final long serialVersionUID = 5207702025718645246L;
 	}
 
-	public ESImporter(String source) {
-		this.source = source;
+	public ESImporter(ImportOptions options) {
+		this.options = options;
 	}
 	
 	public void run() throws ImportException {
 		
-		log.info("Read from {}", source);
+		log.info("Read from {}", options.getSource());
 		
-		AddressesIndexHolder.drop();
+		if (options.isDrop() && AddressesIndexHolder.exists()) {
+			log.info("Drop index");
+			AddressesIndexHolder.drop();
+		}
+
 		if(!AddressesIndexHolder.exists()) {
 			log.info("Create index");
 			AddressesIndexHolder.create();
@@ -74,28 +83,32 @@ public class ESImporter {
 		this.started = new Date().getTime();
 		
 		try {
-			GZIPInputStream is = new GZIPInputStream(new FileInputStream(new File(source)));
-			BufferedReader reader = new BufferedReader(new InputStreamReader(is, "utf8"));
+			
+			BufferedReader reader = getStreamReader();
 
 			try {
 				String line = reader.readLine();
 				while (line != null) {
 					
-					total ++;
 					try {
 						JSONObject obj = new JSONObject(line);
 					
 						AddrRowWrapper row = parser.parseAddress(obj);
 						
 						if(row != null) {
+							total ++;
+
 							IndexRequestBuilder index = client
 									.prepareIndex(AddressesIndexHolder.INDEX_NAME, AddressesIndexHolder.ADDR_ROW_TYPE)
 									.setSource(row.getJsonForIndex().toString(), XContentType.JSON);
 							
 							bulk.add(index);
 						}
+						else {
+							skip++;
+						}
 						
-						submitBatch(total);
+						submitBatch(bulk.numberOfActions());
 					}
 					catch (JSONException je) {
 						je.printStackTrace();
@@ -113,11 +126,22 @@ public class ESImporter {
 			}
 			
 			String duration = printDuration(new Date().getTime() - this.started);
+			log.info("{} lines skiped", skip);
 			log.info("Import done in {}", duration);
 		}
 		catch (Exception e) {
 			throw new ImportException(e);
 		}
+	}
+
+	private BufferedReader getStreamReader() throws FileNotFoundException, IOException, UnsupportedEncodingException {
+		File file = new File(options.getSource());
+		InputStream is = new FileInputStream(file);
+		if (file.getName().endsWith(".gz")) {
+			is = new GZIPInputStream(is);
+		}
+		BufferedReader reader = new BufferedReader(new InputStreamReader(is, "utf8"));
+		return reader;
 	}
 	
 	private void submitBatch(int counter) throws ImportException {
@@ -170,7 +194,10 @@ public class ESImporter {
 	
 	public static void main(String[] args) throws FileNotFoundException, IOException {
 		try {
-			new ESImporter(args[0]).run();
+			ImportOptions importOptions = new ImportOptions();
+			importOptions.setSource(args[0]);
+			
+			new ESImporter(importOptions).run();
 		} catch (ImportException e) {
 			e.printStackTrace();
 		}

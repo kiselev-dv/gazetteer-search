@@ -4,10 +4,11 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,7 +42,9 @@ public class ImportObjectParser {
 			
 			String osm_type = jsonObject.optString("osm_type");
 			
-			if ("mtainf".equals(type) || osm_type == null) {
+			Set<String> skip = new HashSet<>(Arrays.asList("mtainf", "hghway", "poipnt"));
+			
+			if (osm_type == null || skip.contains(type)) {
 				return null;
 			}
 			
