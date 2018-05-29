@@ -1,4 +1,4 @@
-package me.osm.gazetteer.psqlsearch.imp.es;
+package me.osm.gazetteer.psqlsearch.imp.addr;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -30,9 +30,9 @@ import me.osm.gazetteer.psqlsearch.PSQLSearch.ImportOptions;
 import me.osm.gazetteer.psqlsearch.esclient.AddressesIndexHolder;
 import me.osm.gazetteer.psqlsearch.esclient.ESServer;
 
-public class ESImporter {
+public class AddressesImporter {
 	
-	private static final Logger log = LoggerFactory.getLogger(ESImporter.class);
+	private static final Logger log = LoggerFactory.getLogger(AddressesImporter.class);
 	
 	private ImportOptions options;
 
@@ -62,7 +62,7 @@ public class ESImporter {
 		private static final long serialVersionUID = 5207702025718645246L;
 	}
 
-	public ESImporter(ImportOptions options) {
+	public AddressesImporter(ImportOptions options) {
 		this.options = options;
 	}
 	
@@ -197,7 +197,7 @@ public class ESImporter {
 			ImportOptions importOptions = new ImportOptions();
 			importOptions.setSource(args[0]);
 			
-			new ESImporter(importOptions).run();
+			new AddressesImporter(importOptions).run();
 		} catch (ImportException e) {
 			e.printStackTrace();
 		}

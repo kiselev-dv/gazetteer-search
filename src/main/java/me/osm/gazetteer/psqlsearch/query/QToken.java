@@ -12,12 +12,27 @@ public class QToken {
 	private boolean numbersOnly;
 	private boolean optional;
 	
+	private boolean matchedHN;
+	private boolean matchedStreet;
+	
 	public QToken(String text, List<String> variants, boolean hasNumbers, boolean numbersOnly, boolean optional) {
 		this.text = text;
 		this.hasNumbers = hasNumbers;
 		this.numbersOnly = numbersOnly;
 		this.optional = optional;
 		this.variants = variants;
+	}
+
+	public QToken(String text, List<String> variants, boolean hasNumbers, boolean numbersOnly, boolean optional,
+			boolean matchedHN, boolean matchedStreet) {
+		this.text = text;
+		this.hasNumbers = hasNumbers;
+		this.numbersOnly = numbersOnly;
+		this.optional = optional;
+		this.variants = variants;
+		
+		this.matchedHN = matchedHN;
+		this.matchedStreet = matchedStreet;
 	}
 
 	public boolean isHasNumbers() {
@@ -38,6 +53,14 @@ public class QToken {
 	
 	public boolean isFuzzied() {
 		return variants != null && !variants.isEmpty();
+	}
+	
+	public boolean isHNMatched() {
+		return matchedHN;
+	}
+	
+	public boolean isStreetMatched() {
+		return matchedStreet;
 	}
 
 	@Override

@@ -4,7 +4,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 
-import me.osm.gazetteer.psqlsearch.imp.es.ESImporter;
+import me.osm.gazetteer.psqlsearch.imp.addr.AddressesImporter;
 import me.osm.gazetteer.psqlsearch.server.REServer;
 
 public class PSQLSearch {
@@ -59,7 +59,7 @@ public class PSQLSearch {
 		
 		String parsedCommand = jc.getParsedCommand();
 		if (parsedCommand == "import") {
-			new ESImporter(imprt).run();
+			new AddressesImporter(imprt).run();
 		}
 		else {
 			REServer.getInstance();

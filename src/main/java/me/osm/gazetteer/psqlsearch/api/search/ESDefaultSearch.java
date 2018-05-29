@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.search.SearchHit;
@@ -18,12 +19,12 @@ import org.json.JSONObject;
 import me.osm.gazetteer.psqlsearch.api.ResultsWrapper;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.BooleanPart;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.CustomScore;
+import me.osm.gazetteer.psqlsearch.backendquery.es.builders.DistinctNameFilter;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.ESQueryPart;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.HousenumbersPart;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.MatchPart;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.Prefix;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.TermsPart;
-import me.osm.gazetteer.psqlsearch.imp.es.DistinctNameFilter;
 import me.osm.gazetteer.psqlsearch.query.QToken;
 import me.osm.gazetteer.psqlsearch.query.Query;
 import me.osm.gazetteer.psqlsearch.query.QueryAnalyzer;
@@ -31,9 +32,9 @@ import me.osm.gazetteer.psqlsearch.query.QueryAnalyzerImpl;
 
 public class ESDefaultSearch implements Search {
 
-	private static final String[] SOURCE_FIELDS = new String[] {
-			"full_text", "osm_id", "json.name", "base_score", "type", "centroid", "id", 
-			"json.address"};
+	private static final String[] SOURCE_FIELDS_BASE = new String[] {
+			"full_text", "osm_id", "json.name", "base_score", 
+			"type", "centroid", "id", "json.address.text"};
 
 	private static final String MATCH_STREET_QUERY_NAME = "match_street";
 
@@ -46,6 +47,8 @@ public class ESDefaultSearch implements Search {
 	private static double rangeHNQBoost = 0.01;
 	
 	private static double mainMatchAdrpntBoost = 0.8;
+	private static double mainMatchHghnetBoost = 100.0;
+	private static double mainMatchPlcpntBoost = 100.0;
 	
 	private static double prefixScoreScale = 100.0;
 	private static double prefixEmptyNameLength = 5.0;
@@ -130,25 +133,30 @@ public class ESDefaultSearch implements Search {
 				allRequiredTokenStrings.addAll(t.getVariants());
 			}
 		});
-		
 
 		List<JSONObject> coallesceQueries = new ArrayList<>();
 		
-		BooleanPart q1 = buildQuery(
+		coallesceQueries.add(buildQuery(
 				query, numberTokens, 
 				optionalTokens, requiredTokens,
 				allRequiredTokenStrings, prefixT, 
-				QueryBuilderFlags.getFlags(QueryBuilderFlags.ONLY_ADDR_POINTS, QueryBuilderFlags.FUZZY));
-		q1.setName("fuzzy_only_addrpnt");
-		coallesceQueries.add(q1.getPart());
+				QueryBuilderFlags.getFlags(QueryBuilderFlags.ONLY_ADDR_POINTS, QueryBuilderFlags.FUZZY)).getPart());
 		
-		BooleanPart q2 = buildQuery(query, numberTokens, optionalTokens, requiredTokens,
+		coallesceQueries.add(buildQuery(
+				query, numberTokens, 
+				optionalTokens, requiredTokens,
+				allRequiredTokenStrings, prefixT, 
+				QueryBuilderFlags.getFlags(QueryBuilderFlags.STREETS_WITH_NUMBERS, QueryBuilderFlags.FUZZY)).getPart());
+		
+		coallesceQueries.add(buildQuery(query, numberTokens, optionalTokens, requiredTokens,
 				allRequiredTokenStrings, prefixT, QueryBuilderFlags.getFlags(
-						QueryBuilderFlags.FUZZY, QueryBuilderFlags.STREET_OR_LOCALITY));
-		q2.setName("fuzzy_street_or_locality");
-		coallesceQueries.add(q2.getPart());
+						QueryBuilderFlags.FUZZY, QueryBuilderFlags.STREET_OR_LOCALITY)).getPart());
 		
-		ESCoalesce coalesce = new ESCoalesce(coallesceQueries, SOURCE_FIELDS);
+		String[] sourceFields = SOURCE_FIELDS_BASE;
+		if (options.isVerboseAddress()) {
+			sourceFields = ArrayUtils.add(SOURCE_FIELDS_BASE, "json.address");
+		}
+		ESCoalesce coalesce = new ESCoalesce(coallesceQueries, sourceFields);
 		
 		if (options.getLat() != null && options.getLon() != null) {
 			coalesce.setDistanceSort(options.getLat(), options.getLon());
@@ -264,6 +272,10 @@ public class ESDefaultSearch implements Search {
 			mainBooleanPart.addMust(
 					new TermsPart("type", Arrays.asList("adrpnt")));
 		}
+		else if (housenumber == null) {
+			mainBooleanPart.addMust(
+					new TermsPart("type", Arrays.asList("plcpnt", "plcbnd", "hghnet")));
+		}
 		else {
 			mainBooleanPart.addMust(
 					new TermsPart("type", Arrays.asList("plcpnt", "plcbnd", "hghnet", "adrpnt")));
@@ -293,7 +305,7 @@ public class ESDefaultSearch implements Search {
 		
 		BooleanPart multimatch = new BooleanPart();
 		multimatch.setName("required_terms");
-
+		
 		Set<String> tokenStrings = new HashSet<>();
 		requiredTokens.stream().forEach(t -> {
 			tokenStrings.add(t.toString());
@@ -329,11 +341,9 @@ public class ESDefaultSearch implements Search {
 			multimatch.addShould(streetMatch);
 		}
 		
-		if (addNumberTokensToStreets) {
-			for (QToken qtoken : numberTokens) {
-				if (qtoken.isFuzzied() && !qtoken.isNumbersOnly()) {
-					multimatch.addMust(new MatchPart("street", qtoken.getVariants()));
-				}
+		for (QToken qtoken : numberTokens) {
+			if (qtoken.isStreetMatched() || addNumberTokensToStreets) {
+				multimatch.addMust(new MatchPart("street", qtoken.getVariants()).setName(MATCH_STREET_QUERY_NAME));
 			}
 		}
 		
@@ -366,11 +376,13 @@ public class ESDefaultSearch implements Search {
 
 		Map<String, Object> parameters = new HashMap<>();
 		parameters.put("adrpnt_boost", mainMatchAdrpntBoost);
-		parameters.put("plcpnt_boost", 100.0);
-		parameters.put("ref_boost", 0.005);
+		parameters.put("hghnet_boost", mainMatchHghnetBoost * 10.0);
+		parameters.put("plcpnt_boost", mainMatchPlcpntBoost);
+		parameters.put("ref_boost", 0.0001);
 		
 		String script = "_score * "
 				+ "(doc['type'].value == 'adrpnt' ? params.adrpnt_boost : 1.0) * "
+				+ "(doc['type'].value == 'hghnet' && doc['ref'].value == null ? params.hghnet_boost : 1.0) * "
 				+ "(doc['type'].value == 'plcpnt' ? params.plcpnt_boost : 1.0) * "
 				+ "(doc['ref'].value != null ? params.ref_boost : 1.0)";
 		
@@ -382,6 +394,10 @@ public class ESDefaultSearch implements Search {
 		JSONObject housenumber = null;
 		
 		for (QToken t : numberTokens) {
+			if (t.isStreetMatched()) {
+				continue;
+			}
+
 			HousenumbersPart hn = new HousenumbersPart(
 					t.toString(), 
 					t.getVariants(), 
@@ -401,9 +417,8 @@ public class ESDefaultSearch implements Search {
 			}
 			else {
 				housenumber.getJSONObject("dis_max")
-					.getJSONArray("queries").put(hn.getPart());
+				.getJSONArray("queries").put(hn.getPart());
 			}
-			
 		}
 		
 		if (housenumber != null) {
@@ -427,8 +442,9 @@ public class ESDefaultSearch implements Search {
 		String resultFullText = sourceAsMap.get("full_text").toString();
 		Map<?,?> centoidfield = (Map<?, ?>) sourceAsMap.get("centroid");
 		
-		Map addressAsMap = (Map) ((Map<String, ?>)sourceAsMap.get("json")).get("address");
-		String name = (String) ((Map<String, ?>)sourceAsMap.get("json")).get("name");
+		Map<String, ?> jsonAsMap = (Map<String, ?>)sourceAsMap.get("json");
+		Map addressAsMap = (Map) jsonAsMap.get("address");
+		String name = (String) jsonAsMap.get("name");
 		
 		results.addResultsRow(
 				hit.getScore(),

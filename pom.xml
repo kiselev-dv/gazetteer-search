@@ -11,6 +11,7 @@
 		<maven.compiler.target>1.9</maven.compiler.target>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
+		<osmdoc.version>1.5</osmdoc.version>
 		<restexpress.version>0.11.3</restexpress.version>
 	</properties>
 
@@ -22,18 +23,18 @@
 		</dependency>
 
 		<!-- https://mvnrepository.com/artifact/postgresql/postgresql -->
-		<dependency>
-			<groupId>postgresql</groupId>
-			<artifactId>postgresql</artifactId>
-			<version>9.1-901-1.jdbc4</version>
-		</dependency>
+<!-- 		<dependency> -->
+<!-- 			<groupId>postgresql</groupId> -->
+<!-- 			<artifactId>postgresql</artifactId> -->
+<!-- 			<version>9.1-901-1.jdbc4</version> -->
+<!-- 		</dependency> -->
 
 		<!-- https://mvnrepository.com/artifact/com.jolbox/bonecp -->
-		<dependency>
-			<groupId>com.jolbox</groupId>
-			<artifactId>bonecp</artifactId>
-			<version>0.8.0.RELEASE</version>
-		</dependency>
+<!-- 		<dependency> -->
+<!-- 			<groupId>com.jolbox</groupId> -->
+<!-- 			<artifactId>bonecp</artifactId> -->
+<!-- 			<version>0.8.0.RELEASE</version> -->
+<!-- 		</dependency> -->
 
 		<!-- https://mvnrepository.com/artifact/com.github.sps.junidecode/junidecode -->
 		<dependency>
@@ -113,6 +114,18 @@
 		    <artifactId>jcommander</artifactId>
 		    <version>1.72</version>
 		</dependency>
+		
+		<dependency>
+			<groupId>me.osm.osm-doc</groupId>
+			<artifactId>osm-doc-java</artifactId>
+			<version>${osmdoc.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-simple</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
 
 	</dependencies>
 
@@ -144,5 +157,16 @@
 			</plugin>
 		</plugins>
 	</build>
+	
+	<repositories>
+		<repository>
+			<id>myMavenRepo.read</id>
+			<url>https://mymavenrepo.com/repo/rRfVAWWQw6RiXxhmZkot/</url>
+			<snapshots>
+				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+			</snapshots>
+		</repository>
+	</repositories>
 
 </project>

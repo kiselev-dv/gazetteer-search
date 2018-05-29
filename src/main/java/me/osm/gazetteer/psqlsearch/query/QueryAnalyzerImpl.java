@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -39,10 +40,11 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 		readOptionals();
 	}
 	
-	public static final List<Replacer> searchReplacers = new ArrayList<>();
+	public static final List<Replacer> streetReplacers = new ArrayList<>();
+	public static final List<Replacer> hnReplacers = new ArrayList<>();
 	static {
-		ReplacersCompiler.compile(searchReplacers, new File("config/replacers/search/requiredSearchReplacers"));
-		ReplacersCompiler.compile(searchReplacers, new File("config/replacers/search/hnSearchReplacers"));
+		ReplacersCompiler.compile(streetReplacers, new File("config/replacers/search/requiredSearchReplacers"));
+		ReplacersCompiler.compile(hnReplacers, new File("config/replacers/search/hnSearchReplacers"));
 	}
 	
 	@Override
@@ -60,19 +62,31 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 			q = StringUtils.replace(q, r[0], r[1]);
 		}
 
-		LinkedHashMap<String, Collection<String>> groups = new LinkedHashMap<>();
-		for(Replacer r : searchReplacers) {
-			groups.putAll(r.replaceGroups(q));
+		LinkedHashMap<String, Collection<String>> group2variants = new LinkedHashMap<>();
+		
+		Set<String> streetMatches = new HashSet<>();
+		Set<String> hnMatches = new HashSet<>();
+		
+		for(Replacer r : streetReplacers) {
+			Map<String, Collection<String>> replaceGroups = r.replaceGroups(q);
+			group2variants.putAll(replaceGroups);
+			streetMatches.addAll(replaceGroups.keySet());
+		}
+		
+		for(Replacer r : hnReplacers) {
+			Map<String, Collection<String>> replaceGroups = r.replaceGroups(q);
+			group2variants.putAll(replaceGroups);
+			hnMatches.addAll(replaceGroups.keySet());
 		}
 		
 		HashMap<String, String> groupAliases = new HashMap<>();
 		
 		int i = 0;
-		for(Entry<String, Collection<String>> gk : groups.entrySet()) {
+		for(Entry<String, Collection<String>> gk : group2variants.entrySet()) {
 			String alias = "GROUP" + i++;
 			groupAliases.put(alias, gk.getKey());
 
-			q = StringUtils.replace(q, gk.getKey(), alias);
+			q = StringUtils.replace(q, gk.getKey(), " " + alias);
 		}
 		
 		Set<String> matchedOptTokens = new HashSet<>();
@@ -94,6 +108,9 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 		List<QToken> result = new ArrayList<QToken>(tokens.length);
 
 		for(String t : tokens) {
+			
+			boolean matchedHN = false;
+			boolean matchedStreet = false;
 
 			List<String> variants = new ArrayList<>();
 			if(StringUtils.startsWith(t, "GROUP")) {
@@ -105,9 +122,11 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 						String tail = StringUtils.remove(t, matched);
 						t = groupKey + tail;
 						variants = new ArrayList<>();
-						for(String var : groups.get(groupKey)) {
+						for(String var : group2variants.get(groupKey)) {
 							variants.add(var + tail);
 						}
+						matchedHN = hnMatches.contains(groupKey);
+						matchedStreet = streetMatches.contains(groupKey);
 					}
 				}
 			}
@@ -120,7 +139,7 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 					|| (!hasNumbers && withoutNumbers.length() < 3)
 					|| matchedOptTokens.contains(t);
 			
-			result.add(new QToken(t, variants, hasNumbers, numbersOnly, optional));
+			result.add(new QToken(t, variants, hasNumbers, numbersOnly, optional, matchedHN, matchedStreet));
 		}
 		
 		Query query = new Query(result, original, varyOriginal(original));

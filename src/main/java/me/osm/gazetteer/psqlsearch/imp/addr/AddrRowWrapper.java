@@ -1,4 +1,4 @@
-package me.osm.gazetteer.psqlsearch.imp.es;
+package me.osm.gazetteer.psqlsearch.imp.addr;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;

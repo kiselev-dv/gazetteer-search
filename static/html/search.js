@@ -103,8 +103,8 @@ gztrApp.factory('gztrThrottle', ['$timeout', 'throttle_delay', 'throttle_culdown
 }]);
 
 gztrApp.filter('trim', function() {
-	return function (arr, trim) {
-		if (arr) {
+	return function (arr, trim, active) {
+		if (arr && active) {
 			return arr.filter(function(item, index){
 				return index < trim;
 			});
@@ -142,6 +142,7 @@ gztrApp.controller('SearchController',
 	// query string, binded 
 	self.query = '';
 	self.prefix = true;
+	self.trim = true;
 	self.requestCounter = 0;
 	
 	$scope.$watch("search.query", function(newValue) {

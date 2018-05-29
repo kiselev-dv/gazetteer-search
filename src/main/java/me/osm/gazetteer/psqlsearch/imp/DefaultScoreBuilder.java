@@ -10,7 +10,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import me.osm.gazetteer.psqlsearch.imp.es.AddrRowWrapper;
+import me.osm.gazetteer.psqlsearch.imp.addr.AddrRowWrapper;
 import me.osm.gazetteer.psqlsearch.query.IndexAnalyzer.Token;
 
 public class DefaultScoreBuilder implements ScoreBuilder {

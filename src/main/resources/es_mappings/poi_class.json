@@ -1,0 +1,19 @@
+{
+    "properties": {
+        "name": {
+            "type": "keyword"
+        },
+        "title": {
+        	"type": "text"
+        },
+        "keywords": {
+        	"type": "text"
+        },
+        "parsed_tags": {
+			"type": "object"        
+        },
+        "lang_to_title": {
+        	"type": "object"
+        }
+    } 
+}

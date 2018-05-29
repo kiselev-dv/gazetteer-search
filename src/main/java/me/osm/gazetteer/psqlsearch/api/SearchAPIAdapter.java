@@ -23,8 +23,9 @@ public class SearchAPIAdapter implements SearchAPI {
 	private static final String PAGE_SIZE = "size";
 
 	private static final String LAT_PARAM = "lat";
-
 	private static final String LON_PARAM = "lon";
+	
+	private static final String VERBOSE_ADDRESS = "verbose_address";
 	
 	@Inject
 	private Search search;
@@ -43,6 +44,8 @@ public class SearchAPIAdapter implements SearchAPI {
 		
 		searchOptions.setLon(getLon(request));
 		searchOptions.setLat(getLat(request));
+		
+		searchOptions.setVerboseAddress(getBoolean(request, VERBOSE_ADDRESS, false));
 		
 		log.info("search {}", query);
 		

@@ -10,6 +10,7 @@ public class SearchOptions {
 	private boolean rangeHouseNumbers = true;
 	private boolean fuzzy = true;
 	private boolean matchStreetsWithNumbers;
+	private boolean verboseAddress;
 	
 	public Double getLon() {
 		return lon;
@@ -60,5 +61,11 @@ public class SearchOptions {
 		this.matchStreetsWithNumbers = matchStreetsWithNumbers;
 	}
 	
+	public void setVerboseAddress(boolean verboseAddress) {
+		this.verboseAddress = verboseAddress;
+	}
+	public boolean isVerboseAddress() {
+		return verboseAddress;
+	}
 	
 }

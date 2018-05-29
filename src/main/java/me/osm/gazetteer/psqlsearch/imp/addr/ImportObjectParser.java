@@ -1,4 +1,4 @@
-package me.osm.gazetteer.psqlsearch.imp.es;
+package me.osm.gazetteer.psqlsearch.imp.addr;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -21,8 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import me.osm.gazetteer.psqlsearch.imp.DefaultScoreBuilder;
+import me.osm.gazetteer.psqlsearch.imp.ImportException;
 import me.osm.gazetteer.psqlsearch.imp.ScoreBuilder;
-import me.osm.gazetteer.psqlsearch.imp.postgres.Importer.ImportException;
 import me.osm.gazetteer.psqlsearch.query.IndexAnalyzer;
 import me.osm.gazetteer.psqlsearch.query.IndexAnalyzer.Token;
 
@@ -43,6 +43,11 @@ public class ImportObjectParser {
 			String osm_type = jsonObject.optString("osm_type");
 			
 			Set<String> skip = new HashSet<>(Arrays.asList("mtainf", "hghway", "poipnt"));
+
+			if ("mtainf".equals(type)) {
+				log.info("Import metainf: {}", jsonObject);
+				return null;
+			}
 			
 			if (osm_type == null || skip.contains(type)) {
 				return null;

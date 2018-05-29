@@ -1,8 +1,6 @@
-package me.osm.gazetteer.psqlsearch.imp.es;
+package me.osm.gazetteer.psqlsearch.backendquery.es.builders;
 
 import org.json.JSONObject;
-
-import me.osm.gazetteer.psqlsearch.backendquery.es.builders.ESQueryPart;
 
 public class DistinctNameFilter implements ESQueryPart {
 

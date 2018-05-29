@@ -28,8 +28,14 @@ public class ESCoalesce {
 
 	public SearchResponse execute(int from, int size) {
 		SearchResponse response = null;
+		int i = 1;
 		for (JSONObject q : queries) {
 			this.lastQ = q;
+			
+			JSONObject qobj = q.getJSONObject(q.keys().next());
+			if(!qobj.has("_name")) {
+				qobj.put("_name", "coalesce_" + i++);
+			}
 			
 			SearchRequestBuilder searchRequestBuilder = ESServer.getInstance().client()
 					.prepareSearch(AddressesIndexHolder.INDEX_NAME)

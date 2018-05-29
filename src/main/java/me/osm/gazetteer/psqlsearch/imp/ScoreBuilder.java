@@ -1,6 +1,6 @@
 package me.osm.gazetteer.psqlsearch.imp;
 
-import me.osm.gazetteer.psqlsearch.imp.es.AddrRowWrapper;
+import me.osm.gazetteer.psqlsearch.imp.addr.AddrRowWrapper;
 
 public interface ScoreBuilder {
 
