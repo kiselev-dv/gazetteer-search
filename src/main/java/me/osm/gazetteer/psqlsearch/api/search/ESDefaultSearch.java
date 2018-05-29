@@ -453,7 +453,7 @@ public class ESDefaultSearch implements Search {
 				addressAsMap,
 				resultFullText, 
 				sourceAsMap.get("osm_id").toString(),
-				new GeoPoint((double)centoidfield.get("lat"), (double)centoidfield.get("lon")),
+				new GeoPoint((Double)centoidfield.get("lat"), (Double)centoidfield.get("lon")),
 				hit.getMatchedQueries());
 	}
 	
