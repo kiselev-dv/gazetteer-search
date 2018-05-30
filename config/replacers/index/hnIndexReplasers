@@ -26,14 +26,20 @@
 # Original string is added by dafault.
 
 # д. 123Aкорпус №5a => 123а к5а
-([\d]+(?:[\wa-яА-Яё]?)(?![\d]+))[\s]*(корпус|корп|к|участок|уч|у|литера|лит|л|строение|стр|с-е|с|/)?[\.]?[\s]*([\d]*[\wa-яА-Яё]?)(?=[\s]+|$) => ///
+([\d]+(?:[\wa-яА-Яё]?)(?![\d]+))[\s]*(?:(корпус|корп|к|участок|уч|у|литера|лит|л|строение|стр|с-е|с|/)?[\.]?[\s]*)+([\d]*[\wa-яА-Яё]?)(?=[\s]+|$) => ///
 
 <% 
+def alpha = SU.isAlpha(groups[3]);
 def spacer = SU.startsWith(groups[2], "/") ? "" : " ";
 def main = SU.lowerCase(groups[1]);
 def tail = SU.stripToEmpty(SU.lowerCase(groups[3]));
 def delFll = SU.stripToEmpty(SU.lowerCase(groups[2]));
 %>
+
+<% if (alpha) { %> 
+${SU.lowerCase(groups[1])} ${SU.stripToEmpty(SU.lowerCase(groups[3]))}
+${SU.lowerCase(groups[1])}${SU.stripToEmpty(SU.lowerCase(groups[3]))}
+<% } else { %>
 
 ${main}${spacer}${delFll}${tail}
 
@@ -51,6 +57,8 @@ ${SU.lowerCase(groups[1])} ${SU.stripToEmpty(SU.lowerCase(groups[3]))}
 
 # 123а
 ${SU.lowerCase(groups[1])}
+
+<% } %>
 ///
 
 

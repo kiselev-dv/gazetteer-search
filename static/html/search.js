@@ -173,8 +173,14 @@ gztrApp.controller('SearchController',
 				params['lon'] = parseFloat(ll[1]);
 			}
 			
-			if (query.length > 2 && last.length > 1 || /\d/.test(last)) {
-				throttle.submit(params);
+			if (query.length > 2) {
+				if (last.length > 1 || /\d/.test(last)) {
+					throttle.submit(params);
+				}
+				else {
+					params['prefix'] = false;
+					throttle.submit(params);
+				}
 			}
 		}
 	};

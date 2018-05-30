@@ -32,11 +32,15 @@ for line in unicode_csv_reader(sys.stdin, delimiter='\t'):
         
         newline.append(first_hit[u'full_text'])
         newline.append(first_hit[u'osm_id'])
-        newline.append(str(int(resp[u'total_hits']))) 
+        newline.append(str(float(first_hit[u'centroid'][u'lon'])))
+        newline.append(str(float(first_hit[u'centroid'][u'lat'])))
+        #newline.append(str(int(resp[u'total_hits']))) 
 
         print '\t'.join(newline)
     else:
         newline.append(u'osm_id')
         newline.append(u'full_text')
-        newline.append(u'total_hits')
+        newline.append(u'lon')
+        newline.append(u'lat')
+        #newline.append(u'total_hits')
         print '\t'.join(newline)
