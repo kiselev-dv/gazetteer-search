@@ -1,6 +1,9 @@
 package me.osm.gazetteer.psqlsearch.query;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -14,35 +17,97 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class QueryAnalyzerImpl implements QueryAnalyzer {
 	
 	private static final Logger log = LoggerFactory.getLogger(QueryAnalyzerImpl.class);
-
-	public static final String tokenSeparators = "«»<>, -——–;&:.\"()|[]№#";
-	public static final String removeChars = "#?%*№@$'\"";
 	
+	// this characters used to brake the string into terms
+	public static final String tokenSeparators;
+	
+	// this characters will be removed
+	public static final String removeChars;
+	
+	// char level replaces like ё->е in russian or ß->ss for german
+	public static final List<String[]> charReplaces = new ArrayList<>();
+	
+	// Optional terms
+	public static final Set<String> optionals = new HashSet<String>(); 
+	
+	// One regexp for all optional regexps
+	public static volatile Pattern optRegexp;
+
 	private static final Pattern groupPattern = Pattern.compile("GROUP[0-9]+");
 	
-	public static final List<String[]> charReplaces = new ArrayList<>();
-	static {
-		charReplaces.add(new String[] {
-				"ё", "е"
-		});
-	}
-	
-	public static final Set<String> optionals = new HashSet<String>(); 
-	public static Pattern optRegexp = null;
-	static {
-		readOptionals();
-	}
-	
+	// Terms synonims (for street names mainly)
+	public static final Map<String, Set<String>> synonims = new HashMap<>();
+
+	// Regexp synonims expansions for streets
 	public static final List<Replacer> streetReplacers = new ArrayList<>();
+	
+	// Regexp synonims expansions for housenumbers
 	public static final List<Replacer> hnReplacers = new ArrayList<>();
+	
 	static {
+		try {
+			File cfgFile = new File("config/QueryAnalizer.json");
+			JSONObject cfg = new JSONObject(IOUtils.toString(new FileReader(cfgFile)));
+
+			tokenSeparators = cfg.getString("tokenSeparators");
+			removeChars = cfg.getString("removeChars");
+
+			JSONObject charReplacesJson = cfg.optJSONObject("charReplaces");
+			if (charReplacesJson != null) {
+				for (String key : charReplacesJson.keySet()) {
+					charReplaces.add(new String[] {key, charReplacesJson.getString(key)});
+				}
+			}
+			
+			JSONObject synonimsJson = cfg.optJSONObject("synonims");
+			if (synonimsJson != null) {
+				for(String key : synonimsJson.keySet()) {
+					
+					Set <String> synonimValues = new HashSet<>();
+					
+					synonimValues.add(key.toLowerCase());
+
+					Object val = synonimsJson.get(key);
+					
+					if (val instanceof String) {
+						synonimValues.add(((String) val).toLowerCase());
+					}
+					
+					if (val instanceof JSONArray) {
+						JSONArray valArr = (JSONArray) val;
+						for (int i = 0; i < valArr.length(); i++) {
+							String valS = valArr.getString(i);
+							synonimValues.add(((String) valS).toLowerCase());
+						}
+					}
+					
+					synonims.put(key.toLowerCase(), synonimValues);
+				}
+			}
+			
+		}
+		catch (JSONException e) {
+			throw new RuntimeException("Can't parse config/QueryAnalizer.json cfg", e);
+		}
+		catch (FileNotFoundException e) {
+			throw new RuntimeException("Can't read cfg file config/QueryAnalizer.json", e);
+		} catch (IOException e) {
+			throw new RuntimeException("Can't read cfg file config/QueryAnalizer.json", e);
+		}
+		
+		readOptionals();
+
 		ReplacersCompiler.compile(streetReplacers, new File("config/replacers/search/requiredSearchReplacers"));
 		ReplacersCompiler.compile(hnReplacers, new File("config/replacers/search/hnSearchReplacers"));
 	}
@@ -129,6 +194,11 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 						matchedStreet = streetMatches.contains(groupKey);
 					}
 				}
+			}
+			
+			if (synonims.get(t) != null) {
+				matchedStreet = true;
+				variants.addAll(synonims.get(t));
 			}
 			
 			String withoutNumbers = StringUtils.replaceChars(t, "0123456789", "");
