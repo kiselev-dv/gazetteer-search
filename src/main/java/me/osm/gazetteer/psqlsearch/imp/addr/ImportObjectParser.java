@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,6 +26,8 @@ import me.osm.gazetteer.psqlsearch.imp.ImportException;
 import me.osm.gazetteer.psqlsearch.imp.ScoreBuilder;
 import me.osm.gazetteer.psqlsearch.query.IndexAnalyzer;
 import me.osm.gazetteer.psqlsearch.query.IndexAnalyzer.Token;
+import me.osm.osmdoc.model.Feature;
+import me.osm.osmdoc.model.Tag.Val;
 
 public class ImportObjectParser {
 	
@@ -131,6 +134,22 @@ public class ImportObjectParser {
 				 * on ref existance
 				 */
 				fillRefs(subj, jsonObject);
+				
+//				if("poipnt".equals(obj.optString("type"))) {
+//					obj.put("poi_class_trans", new JSONArray(getPoiTypesTranslated(obj)));
+//					
+//					List<Feature> poiClassess = listPoiClassesOSMDoc(obj);
+//					Map<String, List<Val>> moreTagsVals = new HashMap<String, List<Val>>();
+//					JSONObject moreTags = FACADE.parseMoreTags(poiClassess, obj.getJSONObject("tags"), 
+//							POI_STATISTICS, moreTagsVals);
+//					
+//					obj.put("more_tags", moreTags);
+//					
+//					LinkedHashSet<String> keywords = new LinkedHashSet<String>();
+//					FACADE.collectKeywords(poiClassess, moreTagsVals, keywords, null);
+//					
+//					obj.put("poi_keywords", new JSONArray(keywords));
+//				}
 				
 				DateTime dateTimeTimestamp = new DateTime(jsonObject.getString("timestamp"));
 				subj.setTimestamp(new Timestamp(dateTimeTimestamp.getMillis()));

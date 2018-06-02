@@ -1,19 +1,53 @@
 {
-    "properties": {
-        "name": {
-            "type": "keyword"
-        },
-        "title": {
-        	"type": "text"
-        },
-        "keywords": {
-        	"type": "text"
-        },
-        "parsed_tags": {
-			"type": "object"        
-        },
-        "lang_to_title": {
-        	"type": "object"
-        }
-    } 
+	"dynamic_templates": [
+		{
+			"title_by_lang": {
+				"path_match": "title_by_lang.*",
+				"mapping": {
+					"type": "keyword"
+				}
+			}
+		},
+		{
+			"tag_values": {
+				"path_match": "more_tags.values.*",
+				"mapping": {
+					"type": "keyword"
+				}
+			}
+		}
+	],
+	"poi_class": {
+	    "properties": {
+	        "name": {
+	            "type": "keyword"
+	        },
+	        "title": {
+	        	"type": "text"
+	        },
+	        "traits": {
+	        	"type": "keyword"
+	        },
+	        "keywords": {
+	        	"type": "text"
+	        },
+	        "more_tags": {
+				"type": "object",
+				"properties": {
+	      			"name": {
+	      				"type": "keyword"
+	      			},
+					"valueType": {
+						"type": "keyword"
+					},
+					"values": {
+						"type": "object"
+					}
+				}     
+	        },
+	        "title_by_lang": {
+	        	"type": "object"
+	        }
+	    } 
+	}
 }

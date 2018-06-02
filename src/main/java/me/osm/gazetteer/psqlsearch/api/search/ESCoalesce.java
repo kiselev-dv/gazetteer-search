@@ -11,6 +11,7 @@ import org.json.JSONObject;
 
 import me.osm.gazetteer.psqlsearch.esclient.AddressesIndexHolder;
 import me.osm.gazetteer.psqlsearch.esclient.ESServer;
+import me.osm.gazetteer.psqlsearch.esclient.IndexHolder;
 
 public class ESCoalesce {
 	
@@ -38,8 +39,8 @@ public class ESCoalesce {
 			}
 			
 			SearchRequestBuilder searchRequestBuilder = ESServer.getInstance().client()
-					.prepareSearch(AddressesIndexHolder.INDEX_NAME)
-					.setTypes(AddressesIndexHolder.ADDR_ROW_TYPE)
+					.prepareSearch(IndexHolder.ADDRESSES_INDEX)
+					.setTypes(IndexHolder.ADDR_ROW_TYPE)
 					.setFetchSource(fetchSourceInclude, new String[] {"json.address.parts.names"})
 					.setQuery(QueryBuilders.wrapperQuery(q.toString()))
 					.setFrom(from).setSize(size);

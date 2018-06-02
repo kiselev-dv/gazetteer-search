@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import me.osm.gazetteer.psqlsearch.PSQLSearch.ImportOptions;
 import me.osm.gazetteer.psqlsearch.esclient.AddressesIndexHolder;
 import me.osm.gazetteer.psqlsearch.esclient.ESServer;
+import me.osm.gazetteer.psqlsearch.esclient.IndexHolder;
 
 public class AddressesImporter {
 	
@@ -46,6 +47,8 @@ public class AddressesImporter {
 	
 	private TransportClient client = ESServer.getInstance().client();
 	private volatile BulkRequestBuilder bulk = client.prepareBulk();
+	private static final IndexHolder indexHolder = new AddressesIndexHolder();
+	
 
 	private long started;
 	
@@ -70,14 +73,14 @@ public class AddressesImporter {
 		
 		log.info("Read from {}", options.getSource());
 		
-		if (options.isDrop() && AddressesIndexHolder.exists()) {
+		if (options.isDrop() && indexHolder.exists()) {
 			log.info("Drop index");
-			AddressesIndexHolder.drop();
+			indexHolder.drop();
 		}
 
-		if(!AddressesIndexHolder.exists()) {
+		if(!indexHolder.exists()) {
 			log.info("Create index");
-			AddressesIndexHolder.create();
+			indexHolder.create();
 		}
 		
 		this.started = new Date().getTime();
@@ -99,7 +102,7 @@ public class AddressesImporter {
 							total ++;
 
 							IndexRequestBuilder index = client
-									.prepareIndex(AddressesIndexHolder.INDEX_NAME, AddressesIndexHolder.ADDR_ROW_TYPE)
+									.prepareIndex(indexHolder.getIndex(), indexHolder.getType())
 									.setSource(row.getJsonForIndex().toString(), XContentType.JSON);
 							
 							bulk.add(index);
