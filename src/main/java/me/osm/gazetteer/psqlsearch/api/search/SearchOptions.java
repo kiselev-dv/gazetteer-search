@@ -5,11 +5,10 @@ public class SearchOptions {
 	private boolean withPrefix = true; 
 	private Double lon; 
 	private Double lat;
-	private boolean addressesOnly = false;
+	private boolean noPoi = false;
 	
-	private boolean rangeHouseNumbers = true;
 	private boolean fuzzy = true;
-	private boolean matchStreetsWithNumbers;
+	private boolean rangeHouseNumbers = true;
 	private boolean verboseAddress;
 	
 	public Double getLon() {
@@ -26,11 +25,11 @@ public class SearchOptions {
 		this.lat = lat;
 	}
 	
-	public boolean isAddressesOnly() {
-		return addressesOnly;
+	public boolean isNoPoi() {
+		return noPoi;
 	}
-	public void setAddressesOnly(boolean addressesOnly) {
-		this.addressesOnly = addressesOnly;
+	public void setNoPoi(boolean noPoi) {
+		this.noPoi = noPoi;
 	}
 	
 	public boolean isWithPrefix() {
@@ -52,13 +51,6 @@ public class SearchOptions {
 	}
 	public void setFuzzy(boolean fuzzy) {
 		this.fuzzy = fuzzy;
-	}
-	
-	public boolean isMatchStreetsWithNumbers() {
-		return this.matchStreetsWithNumbers;
-	}
-	public void setMatchStreetsWithNumbers(boolean matchStreetsWithNumbers) {
-		this.matchStreetsWithNumbers = matchStreetsWithNumbers;
 	}
 	
 	public void setVerboseAddress(boolean verboseAddress) {

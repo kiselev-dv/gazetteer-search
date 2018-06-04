@@ -1,11 +1,11 @@
 package me.osm.gazetteer.psqlsearch.api;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
 import org.elasticsearch.common.geo.GeoPoint;
-import org.json.JSONObject;
 
 public class ResultsWrapper {
 	
@@ -22,6 +22,7 @@ public class ResultsWrapper {
 	private long answer_time;
 	private long query_time;
 	private String mark;
+	private Collection<String> matched_poi_classes;
 	
 	public static final class SearchResultRow {
 		public double rank;
@@ -103,6 +104,10 @@ public class ResultsWrapper {
 
 	public void setMark(String mark) {
 		this.mark = mark;
+	}
+
+	public void setMatchedPoiClasses(Collection<String> poiClasses) {
+		this.matched_poi_classes = poiClasses;
 	}
 	
 }

@@ -26,6 +26,7 @@ public class SearchAPIAdapter implements SearchAPI {
 	private static final String LON_PARAM = "lon";
 	
 	private static final String VERBOSE_ADDRESS = "verbose_address";
+	private static final String NO_POI = "no_poi";
 	
 	@Inject
 	private Search search;
@@ -46,6 +47,7 @@ public class SearchAPIAdapter implements SearchAPI {
 		searchOptions.setLat(getLat(request));
 		
 		searchOptions.setVerboseAddress(getBoolean(request, VERBOSE_ADDRESS, false));
+		searchOptions.setNoPoi(getBoolean(request, NO_POI, false));
 		
 		log.info("search {}", query);
 		

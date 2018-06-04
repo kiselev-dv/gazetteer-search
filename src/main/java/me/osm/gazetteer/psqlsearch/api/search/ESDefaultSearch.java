@@ -2,6 +2,8 @@ package me.osm.gazetteer.psqlsearch.api.search;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,8 +12,10 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.geo.GeoPoint;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -25,6 +29,8 @@ import me.osm.gazetteer.psqlsearch.backendquery.es.builders.HousenumbersPart;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.MatchPart;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.Prefix;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.TermsPart;
+import me.osm.gazetteer.psqlsearch.esclient.ESServer;
+import me.osm.gazetteer.psqlsearch.esclient.IndexHolder;
 import me.osm.gazetteer.psqlsearch.query.QToken;
 import me.osm.gazetteer.psqlsearch.query.Query;
 import me.osm.gazetteer.psqlsearch.query.QueryAnalyzer;
@@ -133,6 +139,11 @@ public class ESDefaultSearch implements Search {
 				allRequiredTokenStrings.addAll(t.getVariants());
 			}
 		});
+		
+		Collection<String> poiClasses = Collections.emptyList();
+		if (!options.isNoPoi()) {
+			poiClasses = queryPoiClasses(prefixT, allRequiredTokenStrings);
+		}
 
 		List<JSONObject> coallesceQueries = new ArrayList<>();
 		
@@ -164,6 +175,7 @@ public class ESDefaultSearch implements Search {
 		
 		ResultsWrapper results = new ResultsWrapper(queryString, page, pageSize);
 		results.setParsedQuery(query.print());
+		results.setMatchedPoiClasses(poiClasses);
 		
 		try {
 			SearchResponse response = coalesce.execute(0, 20);
@@ -185,6 +197,33 @@ public class ESDefaultSearch implements Search {
 		results.setAnswerTime(new Date().getTime() - startms);
 		
 		return results;
+	}
+
+	private Collection<String> queryPoiClasses(QToken prefixT, List<String> allRequiredTokenStrings) {
+		Collection<String> poiClasses = new HashSet<>();
+		
+		String poiTypeQ = getPoiTypeQuery(prefixT, allRequiredTokenStrings).toString();
+		SearchRequestBuilder poiQueryRequestBuilder = ESServer.getInstance().client()
+				.prepareSearch(IndexHolder.POI_CLASS_INDEX)
+				.setTypes(IndexHolder.POI_CLASS_TYPE)
+				.setFetchSource(new String[] {"name"}, new String[] {"json.address.parts.names"})
+				.setQuery(QueryBuilders.wrapperQuery(poiTypeQ));
+		
+		SearchResponse searchResponse = poiQueryRequestBuilder.get();
+		
+		for(SearchHit hit : searchResponse.getHits()) {
+			poiClasses.add(hit.getSourceAsMap().get("name").toString()); 
+		}
+		
+		return poiClasses;
+	}
+
+	private JSONObject getPoiTypeQuery(QToken prefixT, List<String> terms) {
+		BooleanPart bool = new BooleanPart();
+		bool.addShould(new MatchPart("title", terms));
+		bool.addShould(new JSONObject().put("prefix", 
+				new JSONObject().put("title", prefixT.toString())));
+		return bool.getPart(); 
 	}
 
 	private int trimResponse(SearchResponse response) {
