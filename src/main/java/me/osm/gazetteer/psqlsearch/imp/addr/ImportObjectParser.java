@@ -6,7 +6,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -26,8 +25,6 @@ import me.osm.gazetteer.psqlsearch.imp.ImportException;
 import me.osm.gazetteer.psqlsearch.imp.ScoreBuilder;
 import me.osm.gazetteer.psqlsearch.query.IndexAnalyzer;
 import me.osm.gazetteer.psqlsearch.query.IndexAnalyzer.Token;
-import me.osm.osmdoc.model.Feature;
-import me.osm.osmdoc.model.Tag.Val;
 
 public class ImportObjectParser {
 	
@@ -94,6 +91,8 @@ public class ImportObjectParser {
 				
 				subj.setStreet(streetTokens);
 				subj.setLocality(localityTokens);
+				
+				subj.setStreetHasLocalityName(isStreetContainsLoc(streetTokens, localityTokens));
 				
 				List<Token> admin0 = indexAnalyzer.normalizeLocationName(jsonObject.optString("admin0_name"));
 				subj.setAdmin0(admin0);
@@ -171,6 +170,19 @@ public class ImportObjectParser {
 		}
 
 		return null;
+	}
+
+	private boolean isStreetContainsLoc(List<Token> streetTokens, List<Token> localityTokens) {
+		
+		for (Token l : localityTokens) {
+			for (Token s : streetTokens) {
+				if(StringUtils.contains(s.token, l.token) || StringUtils.contains(l.token, s.token)) {
+					return true;
+				}
+			}
+		}
+		
+		return false;
 	}
 
 	private void fillNameAggIndex(String type, List<Token> nameTokens, AddrRowWrapper subj) {

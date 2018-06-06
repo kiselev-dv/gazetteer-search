@@ -58,6 +58,7 @@ public class AddrRowWrapper {
 	private List<Token> admin1;
 	private List<Token> admin2;
 	private List<Token> localAdmin;
+	private boolean streetHasLoc;
 
 	public void setId(String id) {
 		this.id = id;
@@ -293,7 +294,7 @@ public class AddrRowWrapper {
 		
 		obj.put("street", asStringList(street));
 		obj.put("street_length", street.size());
-		//obj.put("street_type", streetType);
+		obj.put("street_has_loc", streetHasLoc);
 
 		obj.put("locality", asStringList(locality));
 		obj.put("locality_length", locality.size());
@@ -369,6 +370,10 @@ public class AddrRowWrapper {
 	
 	public void setLocalAdmin(List<Token> localAdmin) {
 		this.localAdmin = localAdmin;
+	}
+
+	public void setStreetHasLocalityName(boolean streetContainsLoc) {
+		this.streetHasLoc = streetContainsLoc;
 	}
 	
 }
