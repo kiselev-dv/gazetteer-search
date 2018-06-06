@@ -30,6 +30,7 @@ import me.osm.gazetteer.psqlsearch.PSQLSearch.ImportOptions;
 import me.osm.gazetteer.psqlsearch.esclient.AddressesIndexHolder;
 import me.osm.gazetteer.psqlsearch.esclient.ESServer;
 import me.osm.gazetteer.psqlsearch.esclient.IndexHolder;
+import me.osm.gazetteer.psqlsearch.util.TimePeriodFormatter;
 
 public class AddressesImporter {
 	
@@ -128,7 +129,7 @@ public class AddressesImporter {
 				IOUtils.closeQuietly(reader);
 			}
 			
-			String duration = printDuration(new Date().getTime() - this.started);
+			String duration = TimePeriodFormatter.printDuration(new Date().getTime() - this.started);
 			log.info("{} lines skiped", skip);
 			log.info("Import done in {}", duration);
 		}
@@ -172,29 +173,6 @@ public class AddressesImporter {
 		log.info("{} rows imported", String.format(Locale.US, "%,9d", total));
 	}
 
-	private String printDuration(long time) {
-		Duration duration = new Duration(time);
-		PeriodFormatter formatter = new PeriodFormatterBuilder()
-			     .appendDays()
-			     .appendSuffix("d")
-			     .appendSeparator(" ")
-			     .appendHours()
-			     .appendSuffix("h")
-			     .appendSeparator(" ")
-			     .appendMinutes()
-			     .appendSuffix("m")
-			     .appendSeparator(" ")
-			     .appendSeconds()
-			     .appendSuffix("s")
-			     .appendSeparator(" ")
-			     .appendMillis3Digit()
-			     .appendSuffix("ms")
-			     .toFormatter();
-		
-		String durationString = formatter.print(duration.toPeriod());
-		return durationString;
-	}
-	
 	public static void main(String[] args) throws FileNotFoundException, IOException {
 		try {
 			ImportOptions importOptions = new ImportOptions();

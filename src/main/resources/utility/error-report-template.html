@@ -1,0 +1,35 @@
+<!doctype html>
+<html ng-app="ErrRep">
+  <head>
+  	<meta charset="UTF-8">
+    <style type="text/css">
+    	@charset "UTF-8"; a.details {font-size: 12px;} span {margin-right: 10px;} .green {background-color: #C4F277;}
+    	.yellow {background-color: #FFF275;}
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.9/angular.js"></script>
+    <script>
+    var gztrApp = angular.module('ErrRep', []);
+    gztrApp.controller('errlist', ['$scope', function($scope) {
+    	$scope.errors=$errors;
+    }]);
+    </script>
+  </head>
+  <body>
+    <div ng-controller="errlist">
+      <div ng-class="{'yellow': err.on_page}" ng-repeat="err in errors">
+      	<div><span ng-bind="err.q"></span><span>Err: {{err.d}}m</span><span>Hits: {{err.c}}</span></div>
+      	<a class="details" ng-click="row.details = !row.details">{{row.details ? 'hide' : 'Show details'}}</a>
+		<div ng-if="row.details">
+			<div ng-bind="err.pq"></div>
+			<div ng-repeat="row in err.rows" ng-class="{'green': row.distance < 250}">
+				<span ng-bind="row.full_text"></span>
+				<span ng-bind="row.distance"></span>
+				<span ng-bind="row.rank"></span>
+				<span ng-bind="row.matched_queries"></span>
+			</div>
+		</div>
+		<hr></hr>     	
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+# Remove parts of the query 
+
+# Remove block number, floor, suit and such garbage
+~\b(кв|квартира|оф|оффис|этаж|эт|каб|кабинет)\b\.?[\s][\d\-а-я]+
+
+# Remove russians zipcodes
+# there is no 6digit housenumbers in Russia
+~\b[\d]{6}\b

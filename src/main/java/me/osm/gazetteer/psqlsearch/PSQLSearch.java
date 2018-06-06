@@ -9,7 +9,7 @@ import me.osm.gazetteer.psqlsearch.server.REServer;
 
 public class PSQLSearch {
 	
-	@Parameters(commandDescription="Imaport data to ES Index")
+	@Parameters(commandDescription="Import data to ES Index")
 	public static class ImportOptions {
 		
 		@Parameter(names={"--drop", "-d"}, description="Drop and create the whole index")

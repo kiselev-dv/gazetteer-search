@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.index.query.QueryBuilders;
 
 public class Query {
@@ -16,12 +18,23 @@ public class Query {
 	private List<QToken> tokens;
 	
 	private Collection<String> originalVariants;
+
+	private Collection<String> removed;
 	
 	public Query(List<QToken> tokens, String original, Collection<String> originalVariants) {
 		this.tokens = tokens;
 		this.original = original;
 		this.originalVariants = (originalVariants == null ? 
 				new ArrayList<String>() : originalVariants);
+	}
+	
+	public Query(List<QToken> tokens, String original, 
+			Collection<String> originalVariants, Collection<String> removed) {
+		this.tokens = tokens;
+		this.original = original;
+		this.originalVariants = (originalVariants == null ? 
+				new ArrayList<String>() : originalVariants);
+		this.removed = removed;
 	}
 
 	public Query head() {
@@ -143,7 +156,15 @@ public class Query {
 			sb.append(" ").append(prefix.print()).append("*");
 		}
 		
-		return sb.substring(1);
+		if (removed != null && !removed.isEmpty()) {
+			sb.append(" ").append("--(").append(StringUtils.join(removed, ',')).append(")");
+		}
+		
+		if (sb.length() > 0) {
+			return sb.substring(1);
+		}
+		
+		return "";
 	}
 
 	public String getOriginal() {

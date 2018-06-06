@@ -109,5 +109,34 @@ public class ResultsWrapper {
 	public void setMatchedPoiClasses(Collection<String> poiClasses) {
 		this.matched_poi_classes = poiClasses;
 	}
+
+	
+	public long getTotalHits() {
+		return total_hits;
+	}
+
+	public String getDebugQuery() {
+		return debug_query;
+	}
+
+	public List<SearchResultRow> getRows() {
+		return rows;
+	}
+
+	public int getTrim() {
+		return trim;
+	}
+
+	public long getAnswerTime() {
+		return answer_time;
+	}
+
+	public long getQueryTime() {
+		return query_time;
+	}
+	
+	public String getParsedQuery() {
+		return parsed_query;
+	}
 	
 }

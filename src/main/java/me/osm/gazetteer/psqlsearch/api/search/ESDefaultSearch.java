@@ -221,8 +221,10 @@ public class ESDefaultSearch implements Search {
 	private JSONObject getPoiTypeQuery(QToken prefixT, List<String> terms) {
 		BooleanPart bool = new BooleanPart();
 		bool.addShould(new MatchPart("title", terms));
-		bool.addShould(new JSONObject().put("prefix", 
-				new JSONObject().put("title", prefixT.toString())));
+		if (prefixT != null) {
+			bool.addShould(new JSONObject().put("prefix", 
+					new JSONObject().put("title", prefixT.toString())));
+		}
 		return bool.getPart(); 
 	}
 
@@ -419,11 +421,10 @@ public class ESDefaultSearch implements Search {
 		parameters.put("plcpnt_boost", mainMatchPlcpntBoost);
 		parameters.put("ref_boost", 0.0001);
 		
-		String script = "_score * "
+		String script = "_score * " 
 				+ "(doc['type'].value == 'adrpnt' ? params.adrpnt_boost : 1.0) * "
 				+ "(doc['type'].value == 'hghnet' && doc['ref'].value == null ? params.hghnet_boost : 1.0) * "
-				+ "(doc['type'].value == 'plcpnt' ? params.plcpnt_boost : 1.0) * "
-				+ "(doc['ref'].value != null ? params.ref_boost : 1.0)";
+				+ "(doc['type'].value == 'plcpnt' ? params.plcpnt_boost : 1.0)";
 		
 		return new CustomScore(multimatch, script, parameters).getPart();
 		
@@ -492,10 +493,20 @@ public class ESDefaultSearch implements Search {
 				addressAsMap,
 				resultFullText, 
 				sourceAsMap.get("osm_id").toString(),
-				new GeoPoint((Double)centoidfield.get("lat"), (Double)centoidfield.get("lon")),
+				new GeoPoint(asDouble(centoidfield.get("lat")), (Double)centoidfield.get("lon")),
 				hit.getMatchedQueries());
 	}
 	
+	private double asDouble(Object v) {
+		if (v instanceof Double) {
+			return (Double) v;
+		}
+		if (v instanceof Integer) {
+			return ((Integer) v).doubleValue();
+		}
+		return 0.0;
+	}
+
 	private List<String> tokensAsStringList(List<QToken> requiredTokens) {
 		List<String> result = new ArrayList<>();
 		for (QToken t : requiredTokens) {

@@ -1,0 +1,31 @@
+{
+	"_source": [
+		"full_text",
+		"id",
+		"type",
+		"name",
+		"housenumber_exact"
+	],
+	"query": {
+		"bool": {
+			"must": [
+				{
+					"match": {
+						"locality": "томск"
+					}
+				},
+				{
+					"match": {
+						"street": "северный городок"
+					}
+				},
+				{
+					"term": {
+						"housenumber_number": 6
+					}
+				}
+			]
+		}
+	},
+	"size": 10
+}

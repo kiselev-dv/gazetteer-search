@@ -1,0 +1,81 @@
+{
+	"_source": 
+	[
+		"full_text",
+		"id",
+		"type",
+		"name",
+		"housenumber_exact"
+	],
+
+	"query": 
+	{
+		"bool": 
+		{
+			"must": 
+			[
+				{
+					"function_score": 
+					{
+						"script_score": 
+						{
+							"script": 
+							{
+								"source": "_score * (doc['type'].value == 'adrpnt' ? params.adrpnt_boost : 1.0) * (doc['type'].value == 'hghnet' && doc['ref'].value == null ? params.hghnet_boost : 1.0) * (doc['type'].value == 'plcpnt' ? params.plcpnt_boost : 1.0) * (doc['ref'].value != null ? params.ref_boost : 1.0)",
+								"params": {
+					                "hghnet_boost": 1000,
+					                "ref_boost": 0.0001,
+					                "plcpnt_boost": 100,
+					                "adrpnt_boost": 0.8
+					            }
+							}
+						},
+
+						"query": 
+						{
+							"bool": 
+							{
+								"_name": "required_terms",
+								"must": 
+								[
+									{
+										"match": 
+										{
+											"street": 
+											{
+												"fuzziness": "1",
+												"_name": "match_street",
+												"query": "северный томск городок"
+											}
+										}
+									},
+
+									{
+										"match": 
+										{
+											"locality": 
+											{
+												"fuzziness": "1",
+												"_name": "match_locality",
+												"query": "северный томск городок"
+											}
+										}
+									}
+								]
+							}
+						}
+					}
+				},
+
+				{
+					"term": 
+					{
+						"housenumber_number": 6
+					}
+				}
+			]
+		}
+	},
+
+	"size": 10
+}

@@ -3,12 +3,14 @@ package me.osm.gazetteer.psqlsearch.query;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -54,6 +56,9 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 	
 	// Regexp synonims expansions for housenumbers
 	public static final List<Replacer> hnReplacers = new ArrayList<>();
+	
+	// One regexp for all stop words and regexp
+	public static volatile Pattern stopRegexp;
 	
 	static {
 		try {
@@ -107,6 +112,7 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 		}
 		
 		readOptionals();
+		readStopWords();
 
 		ReplacersCompiler.compile(streetReplacers, new File("config/replacers/search/requiredSearchReplacers"));
 		ReplacersCompiler.compile(hnReplacers, new File("config/replacers/search/hnSearchReplacers"));
@@ -126,6 +132,14 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 		for(String[] r : charReplaces) {
 			q = StringUtils.replace(q, r[0], r[1]);
 		}
+		
+		Set<String> removed = new LinkedHashSet<>();
+		Matcher stopMatcher = stopRegexp.matcher(q);
+		while (stopMatcher.find()) {
+			removed.add(stopMatcher.group(0));
+		}
+
+		q = stopRegexp.matcher(q).replaceAll("");
 
 		LinkedHashMap<String, Collection<String>> group2variants = new LinkedHashMap<>();
 		
@@ -212,37 +226,66 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 			result.add(new QToken(t, variants, hasNumbers, numbersOnly, optional, matchedHN, matchedStreet));
 		}
 		
-		Query query = new Query(result, original, varyOriginal(original));
+		Query query = new Query(result, original, varyOriginal(original), removed);
 		
 		log.trace("Query: {}", query.print());
 		
 		return query;
 	}
 	
-	@SuppressWarnings("unchecked")
-	private static void readOptionals() {
-		try {
-			Set<String> patterns = new HashSet<>();
-			File optCfg = new File("config/optional-terms/default.terms");
-			for(String option : (List<String>)FileUtils.readLines(optCfg)) {
-				if(!StringUtils.startsWith(option, "#") && !StringUtils.isEmpty(option)) {
-					if(StringUtils.startsWith(option, "~")) {
-						patterns.add(StringUtils.substringAfter(option, "~"));
-					}
-					else {
-						optionals.add(StringUtils.lowerCase(option));
-					}
-				}
+	private static void readStopWords() {
+		Set<String> patterns = new HashSet<>();
+		File dir = new File("config/stop-terms/");
+		
+		for(String line : readTermsD(dir)) {
+			patterns.add(StringUtils.substringAfter(line, "~"));
+		}
+		
+		if(!patterns.isEmpty()) {
+			List<String> t = new ArrayList<>(patterns.size());
+			for(String s : patterns) {
+				t.add("(" + s + ")");
 			}
 			
-			if(!patterns.isEmpty()) {
-				List<String> t = new ArrayList<>(patterns.size());
-				for(String s : patterns) {
-					t.add("(" + s + ")");
-				}
-				
-				optRegexp = Pattern.compile(StringUtils.join(t, "|"));
+			stopRegexp = Pattern.compile(StringUtils.join(t, "|"), Pattern.CASE_INSENSITIVE);
+		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	private static void readOptionals() {
+		Set<String> patterns = new HashSet<>();
+		File dir = new File("config/optional-terms/");
+		
+		for(String line : readTermsD(dir)) {
+			if(StringUtils.startsWith(line, "~")) {
+				patterns.add(StringUtils.substringAfter(line, "~"));
 			}
+			else {
+				optionals.add(StringUtils.lowerCase(line));
+			}
+		}
+		
+		if(!patterns.isEmpty()) {
+			List<String> t = new ArrayList<>(patterns.size());
+			for(String s : patterns) {
+				t.add("(" + s + ")");
+			}
+			
+			optRegexp = Pattern.compile(StringUtils.join(t, "|"), Pattern.CASE_INSENSITIVE);
+		}
+	}
+
+	private static Set<String> readTermsD(File dir) {
+		try {
+			LinkedHashSet<String> lines = new LinkedHashSet<>();
+			for (File f : dir.listFiles((d, name) -> name.endsWith(".terms"))) {
+				for(String option : (List<String>)FileUtils.readLines(f)) {
+					if(!StringUtils.startsWith(option, "#") && !StringUtils.isEmpty(option)) {
+						lines.add(option);
+					}
+				}
+			}
+			return lines;
 		}
 		catch (Exception e) {
 			throw new RuntimeException(e);
