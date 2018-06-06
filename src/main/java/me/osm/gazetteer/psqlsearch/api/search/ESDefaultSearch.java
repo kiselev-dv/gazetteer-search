@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.geo.GeoPoint;
@@ -330,6 +331,9 @@ public class ESDefaultSearch implements Search {
 			mainBooleanPart.addShould(namePart);
 		}
 		
+		// Just for sorting
+		mainBooleanPart.addShould(new MatchPart("full_text", allRequired).setBoost(1.2));
+		
 		mainBooleanPart.addShould(new MatchPart("admin0", allRequired).setName("admin0").setBoost(1.2));
 		mainBooleanPart.addShould(new MatchPart("admin1", allRequired).setName("admin1"));
 		mainBooleanPart.addShould(new MatchPart("admin2", allRequired).setName("admin2"));
@@ -342,7 +346,8 @@ public class ESDefaultSearch implements Search {
 			List<QToken> numberTokens, boolean fuzzy, boolean addNumberTokensToStreets, 
 			boolean allMustMatch) {
 		
-		allMustMatch = allMustMatch && !requiredTokens.isEmpty();
+		int numOfTokens = requiredTokens.size() + (prefixT == null ? 0 : 1);
+		allMustMatch = allMustMatch && !requiredTokens.isEmpty() && numOfTokens > 1;
 		
 		BooleanPart multimatch = new BooleanPart();
 		multimatch.setName("required_terms");
@@ -414,17 +419,33 @@ public class ESDefaultSearch implements Search {
 		else {
 			multimatch.addShould(localityMatch);
 		}
+		
+		if (prefixT != null) {
+			tokenStrings.add(prefixT.toString());
+		}
+		
+		// TODO: Doesn't work with prefix queries
+		// It's better to find a way how to boost by number of mathed **different** terms 
+		JSONObject crossFields = new JSONObject().put("multi_match", new JSONObject()
+				.put("query", StringUtils.join(tokenStrings, ' '))
+				.put("fields", Arrays.asList("locality", "street"))
+				.put("type", "cross_fields")
+				.put("_name", "cross_fields")
+				.put("boost", 1000.0));
+		
+		multimatch.addShould(crossFields);
 
 		Map<String, Object> parameters = new HashMap<>();
 		parameters.put("adrpnt_boost", mainMatchAdrpntBoost);
-		parameters.put("hghnet_boost", mainMatchHghnetBoost * 10.0);
+		parameters.put("hghnet_boost", mainMatchHghnetBoost);
 		parameters.put("plcpnt_boost", mainMatchPlcpntBoost);
-		parameters.put("ref_boost", 0.0001);
+		parameters.put("ref_boost", 0.001);
 		
 		String script = "_score * " 
 				+ "(doc['type'].value == 'adrpnt' ? params.adrpnt_boost : 1.0) * "
 				+ "(doc['type'].value == 'hghnet' && doc['ref'].value == null ? params.hghnet_boost : 1.0) * "
-				+ "(doc['type'].value == 'plcpnt' ? params.plcpnt_boost : 1.0)";
+				+ "(doc['type'].value == 'plcpnt' ? params.plcpnt_boost : 1.0) * "
+				+ "(doc['type'].value == 'hghnet' && doc['ref'].value != null ? params.ref_boost : 1.0)";
 		
 		return new CustomScore(multimatch, script, parameters).getPart();
 		
