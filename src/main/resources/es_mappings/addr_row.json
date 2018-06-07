@@ -68,6 +68,9 @@
 			"street_has_loc": {
 				"type": "boolean"
 			},
+			"ref_count": {
+				"type": "integer"
+			},
 
 			"postal_code": {
 				"type": "keyword"

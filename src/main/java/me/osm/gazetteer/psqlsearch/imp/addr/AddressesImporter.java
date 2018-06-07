@@ -18,9 +18,6 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.joda.time.Duration;
-import org.joda.time.format.PeriodFormatter;
-import org.joda.time.format.PeriodFormatterBuilder;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -49,10 +46,8 @@ public class AddressesImporter {
 	private TransportClient client = ESServer.getInstance().client();
 	private volatile BulkRequestBuilder bulk = client.prepareBulk();
 	private static final IndexHolder indexHolder = new AddressesIndexHolder();
-	
 
 	private long started;
-	
 	
 	public static final class ImportException extends RuntimeException {
 		public ImportException(Exception se) {

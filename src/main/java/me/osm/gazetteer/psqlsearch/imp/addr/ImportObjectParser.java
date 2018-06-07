@@ -33,7 +33,8 @@ public class ImportObjectParser {
 	private IndexAnalyzer indexAnalyzer = new IndexAnalyzer();
 	private ScoreBuilder scoreBuilder = new DefaultScoreBuilder();
 	
-	private Map<Integer, Integer> nameAgg = new HashMap<>();
+	private Map<Integer, Integer> nameAggHghnet = new HashMap<>();
+	private Map<Integer, Integer> nameAggHghway = new HashMap<>();
 
 	public AddrRowWrapper parseAddress(JSONObject jsonObject) throws ImportException {
 		String type = jsonObject.getString("type");
@@ -134,21 +135,9 @@ public class ImportObjectParser {
 				 */
 				fillRefs(subj, jsonObject);
 				
-//				if("poipnt".equals(obj.optString("type"))) {
-//					obj.put("poi_class_trans", new JSONArray(getPoiTypesTranslated(obj)));
-//					
-//					List<Feature> poiClassess = listPoiClassesOSMDoc(obj);
-//					Map<String, List<Val>> moreTagsVals = new HashMap<String, List<Val>>();
-//					JSONObject moreTags = FACADE.parseMoreTags(poiClassess, obj.getJSONObject("tags"), 
-//							POI_STATISTICS, moreTagsVals);
-//					
-//					obj.put("more_tags", moreTags);
-//					
-//					LinkedHashSet<String> keywords = new LinkedHashSet<String>();
-//					FACADE.collectKeywords(poiClassess, moreTagsVals, keywords, null);
-//					
-//					obj.put("poi_keywords", new JSONArray(keywords));
-//				}
+				if("poipnt".equals(type)) {
+					fillPoiPoint(jsonObject);
+				}
 				
 				DateTime dateTimeTimestamp = new DateTime(jsonObject.getString("timestamp"));
 				subj.setTimestamp(new Timestamp(dateTimeTimestamp.getMillis()));
@@ -172,7 +161,23 @@ public class ImportObjectParser {
 		return null;
 	}
 
-	private boolean isStreetContainsLoc(List<Token> streetTokens, List<Token> localityTokens) {
+	private void fillPoiPoint(JSONObject jsonObject) {
+//		obj.put("poi_class_trans", new JSONArray(getPoiTypesTranslated(obj)));
+//		
+//		List<Feature> poiClassess = listPoiClassesOSMDoc(obj);
+//		Map<String, List<Val>> moreTagsVals = new HashMap<String, List<Val>>();
+//		JSONObject moreTags = FACADE.parseMoreTags(poiClassess, obj.getJSONObject("tags"), 
+//				POI_STATISTICS, moreTagsVals);
+//		
+//		obj.put("more_tags", moreTags);
+//		
+//		LinkedHashSet<String> keywords = new LinkedHashSet<String>();
+//		FACADE.collectKeywords(poiClassess, moreTagsVals, keywords, null);
+//		
+//		obj.put("poi_keywords", new JSONArray(keywords));
+	}
+
+	private static boolean isStreetContainsLoc(List<Token> streetTokens, List<Token> localityTokens) {
 		
 		for (Token l : localityTokens) {
 			for (Token s : streetTokens) {
@@ -187,20 +192,24 @@ public class ImportObjectParser {
 
 	private void fillNameAggIndex(String type, List<Token> nameTokens, AddrRowWrapper subj) {
 		subj.setNameAggIndex(0);
-		if ("hghnet".equals(type)) {
+		
+		
+		if ("hghnet".equals(type) || "hghway".equals(type)) {
+			
+			Map<Integer, Integer> agg = "hghnet".equals(type) ? nameAggHghnet : nameAggHghway;
 			
 			if(nameTokens.stream().filter(t -> !t.optional).count() > 0) {
 				int nameHash = nameTokens.stream().filter(t -> !t.optional)
 						.mapToInt(t -> t.token.hashCode()).reduce((i1, i2) -> i1 * i2).getAsInt();
 				
-				if(nameAgg.get(nameHash) == null) {
-					nameAgg.put(nameHash, 0);
+				if(agg.get(nameHash) == null) {
+					agg.put(nameHash, 0);
 				}
 				
-				int i = nameAgg.get(nameHash);
+				int i = agg.get(nameHash);
 				subj.setNameAggIndex(i);
 				
-				nameAgg.put(nameHash, i + 1);
+				agg.put(nameHash, i + 1);
 			}
 		}
 	}
@@ -312,27 +321,6 @@ public class ImportObjectParser {
 		return fullText != null && (housenumber != null || streetName != null || localityName != null);
 	}
 
-	private List<Token> requiredTokens(List<Token> tokens) {
-		List<Token> result = new ArrayList<>();
-		for (Token t : tokens) {
-			if(!t.optional) {
-				result.add(t);
-			}
-		}
-		return result;
-	}
-	
-	private List<Token> optionalTokens(List<Token> tokens) {
-		List<Token> result = new ArrayList<>();
-		for (Token t : tokens) {
-			if(t.optional) {
-				result.add(t);
-			}
-		}
-		return result;
-	}
-	
-	@SuppressWarnings("unchecked")
 	private String getAltNames(JSONObject jsonObject) {
 		JSONObject tags = jsonObject.optJSONObject("tags");
 
