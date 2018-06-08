@@ -36,14 +36,6 @@ public class GazetteerSearch {
 
 	}
 	
-	@Parameters(commandDescription="Start server")
-	public static class ServeCLICommand {
-		
-		@Parameter(names= {"--port", "-p"})
-		private int port = 8080;
-		
-	}
-	
 	public static void main(String[] args) {
 		
 		ImportOptions imprt = new ImportOptions();

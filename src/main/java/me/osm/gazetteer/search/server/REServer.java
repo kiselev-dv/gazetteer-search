@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
+import me.osm.gazetteer.search.ServerOptions;
 import me.osm.gazetteer.search.server.postprocessor.AllowOriginPP;
 import me.osm.gazetteer.search.server.postprocessor.LastModifiedHeaderPostprocessor;
 import me.osm.gazetteer.search.server.postprocessor.MarkHeaderPostprocessor;
@@ -22,10 +23,25 @@ import me.osm.gazetteer.search.server.postprocessor.MarkHeaderPostprocessor;
 public class REServer {
 	
 	private static final Logger log = LoggerFactory.getLogger(REServer.class);
-	private static final REServer INSTANCE = new REServer();
+	private static volatile REServer INSTANCE;
+	private static volatile ServerOptions options = new ServerOptions();
 
+	public static final REServer getInstance(ServerOptions opts) {
+		options = opts;
+		return getInstance();
+	}
+	
 	public static final REServer getInstance() {
-		return INSTANCE;
+		if (INSTANCE != null) {
+			return INSTANCE;
+		}
+		
+		synchronized (REServer.class) {
+			if (INSTANCE == null) {
+				INSTANCE = new REServer();
+			}
+			return INSTANCE;
+		}
 	}
 
 	private final RestExpress server;
@@ -35,7 +51,7 @@ public class REServer {
 		
 		server = new RestExpress()
 				.setUseSystemOut(false)
-				.setPort(getPort())
+				.setPort(options.getPort())
 				.setName(getServerName())
 				.addPostprocessor(new LastModifiedHeaderPostprocessor())
 				.addPostprocessor(new AllowOriginPP())
@@ -43,29 +59,28 @@ public class REServer {
 				.addPreprocessor(new BasikAuthPreprocessor(getRealmName(), getAdminPasswordHash()));
 		
 		REServerRoutes routes = injector.getInstance(REServerRoutes.class);
-		routes.defineRoutes(server, getWebRoot());
+		routes.defineRoutes(server, options.getApiRoot());
 		
 		server.addMessageObserver(new HttpLogger());
-		server.bind(getPort());
+		server.bind(options.getPort());
 		
-		log.info("Listen on port: {}", getPort());
+		log.info("Listen on port: {}", options.getPort());
 		
 		long pid = Long.valueOf(StringUtils.substringBefore(ManagementFactory.getRuntimeMXBean().getName(), "@"));
 		log.info("PID {}", pid);
 
-		File pidFile = new File("gazetteer-search.pid");
-		try {
-			FileUtils.writeStringToFile(pidFile, String.valueOf(pid));
-		} catch (IOException e) {
-			log.warn("Can't save pid to file {}", pidFile);
-			e.printStackTrace();
+		String pidFilePath = options.getPidFilePath();
+		if (pidFilePath != null) {
+			File pidFile = new File(pidFilePath);
+			try {
+				FileUtils.writeStringToFile(pidFile, String.valueOf(pid));
+			} catch (IOException e) {
+				log.warn("Can't save pid to file {}", pidFile);
+				e.printStackTrace();
+			}
 		}
 
 		server.awaitShutdown();
-	}
-
-	private String getWebRoot() {
-		return "";
 	}
 
 	private String getRealmName() {
@@ -77,10 +92,6 @@ public class REServer {
 		return "gazetteer";
 	}
 	
-	private int getPort() {
-		return 8080;
-	}
-
 	private String getAdminPasswordHash() {
 		return Hex.encodeHexString(DigestUtils.sha("test"));
 	}
