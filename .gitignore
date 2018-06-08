@@ -1,8 +1,9 @@
 # Compiled class file
 *.class
 
-# Log file
+# Log files, pid file
 *.log
+*.pid
 
 # BlueJ files
 *.ctxt
@@ -28,4 +29,3 @@ hs_err_pid*
 .classpath
 .settings/
 
-.pid

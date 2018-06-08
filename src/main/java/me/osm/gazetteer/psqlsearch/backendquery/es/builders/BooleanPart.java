@@ -10,7 +10,9 @@ public class BooleanPart implements ESQueryPart {
 	private static final String QUERY_NAME = "bool";
 
 	private JSONArray must;
+	private JSONArray filter;
 	private JSONArray should;
+	private JSONArray mustNot;
 	
 	private JSONObject query;
 
@@ -18,15 +20,31 @@ public class BooleanPart implements ESQueryPart {
 		this.query = new JSONObject();
 		query.put(QUERY_NAME, new JSONObject());
 
-		query.getJSONObject(QUERY_NAME).put("must", new ArrayList<>());
-		query.getJSONObject(QUERY_NAME).put("should", new ArrayList<>());
+		this.must = new JSONArray();
+		this.filter = new JSONArray();
+		this.should = new JSONArray();
+		this.mustNot = new JSONArray();
 		
-		this.must = query.getJSONObject(QUERY_NAME).getJSONArray("must");
-		this.should = query.getJSONObject(QUERY_NAME).getJSONArray("should");
 	}
 	
 	@Override
 	public JSONObject getPart() {
+		if (must.length() > 0) {
+			query.getJSONObject(QUERY_NAME).put("must", must);
+		}
+		
+		if (mustNot.length() > 0) {
+			query.getJSONObject(QUERY_NAME).put("must_not", mustNot);
+		}
+		
+		if (should.length() > 0) {
+			query.getJSONObject(QUERY_NAME).put("should", should);
+		}
+		
+		if (filter.length() > 0) {
+			query.getJSONObject(QUERY_NAME).put("filter", filter);
+		}
+		
 		return query;
 	}
 	
@@ -36,6 +54,22 @@ public class BooleanPart implements ESQueryPart {
 	
 	public void addMust(JSONObject part) {
 		must.put(part);
+	}
+	
+	public void addFilter(ESQueryPart part) {
+		filter.put(part.getPart());
+	}
+	
+	public void addFilter(JSONObject part) {
+		filter.put(part);
+	}
+	
+	public void addMustNot(ESQueryPart part) {
+		mustNot.put(part.getPart());
+	}
+	
+	public void addMustNot(JSONObject part) {
+		mustNot.put(part);
 	}
 	
 	public void addShould(ESQueryPart part) {
@@ -52,6 +86,10 @@ public class BooleanPart implements ESQueryPart {
 
 	public void setBoost(double boost) {
 		query.getJSONObject(QUERY_NAME).put("boost", boost);
+	}
+	
+	public void setMinimumShouldMatch(int min) {
+		query.getJSONObject(QUERY_NAME).put("minimum_should_match", min);
 	}
 
 }

@@ -29,6 +29,7 @@ import me.osm.gazetteer.psqlsearch.backendquery.es.builders.ESQueryPart;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.HousenumbersPart;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.MatchPart;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.Prefix;
+import me.osm.gazetteer.psqlsearch.backendquery.es.builders.StreetHasLocationFilter;
 import me.osm.gazetteer.psqlsearch.backendquery.es.builders.TermsPart;
 import me.osm.gazetteer.psqlsearch.esclient.ESServer;
 import me.osm.gazetteer.psqlsearch.esclient.IndexHolder;
@@ -263,8 +264,8 @@ public class ESDefaultSearch implements Search {
 	}
 
 	private BooleanPart buildQuery(Query query, List<QToken> numberTokens,
-			List<QToken> optionalTokens, List<QToken> requiredTokens, List<String> allRequired, 
-			QToken prefixT, QueryBuilderFlags flags) {
+			List<QToken> optionalTokens, List<QToken> requiredTokens, 
+			List<String> allRequired, QToken prefixT, QueryBuilderFlags flags) {
 		
 		ESQueryPart prefixPart = null;
 		if (prefixT != null) {
@@ -283,6 +284,8 @@ public class ESDefaultSearch implements Search {
 		JSONObject housenumber = buildHousenumberQ(flags.housenumbersRange, numberTokens);
 		
 		BooleanPart mainBooleanPart = new BooleanPart();
+		
+		addNumberOfTermsFilter(mainBooleanPart, prefixPart, allRequired);
 		
 		JSONObject localityAndStreet = buildMultyMatchQuery(
 				requiredTokens, prefixT, numberTokens, 
@@ -340,6 +343,35 @@ public class ESDefaultSearch implements Search {
 		mainBooleanPart.addShould(new MatchPart("local_admin", allRequired).setName("local_admin"));
 		
 		return mainBooleanPart;
+	}
+
+	private void addNumberOfTermsFilter(BooleanPart mainBooleanPart, ESQueryPart prefixPart, List<String> allRequired) {
+		
+		int total = (prefixPart != null ? 1 : 0) + allRequired.size();
+		
+		if (total >= 2) {
+			BooleanPart termsCounter = new BooleanPart();
+
+			if (prefixPart != null) {
+				termsCounter.addShould(prefixPart);
+			}
+			
+			for(String term : allRequired) {
+				termsCounter.addShould(new JSONObject().put("match", new JSONObject()
+						.put("full_text", new JSONObject()
+								.put("query", term)
+								.put("_name", "term:" + term))));
+			}
+			
+			termsCounter.setMinimumShouldMatch(2);
+			
+			mainBooleanPart.addMust(termsCounter);
+		}
+		
+		if (allRequired.size() <= 1) {
+			mainBooleanPart.addMustNot(new StreetHasLocationFilter());
+		}
+		
 	}
 
 	private JSONObject buildMultyMatchQuery(List<QToken> requiredTokens, QToken prefixT, 
@@ -424,21 +456,21 @@ public class ESDefaultSearch implements Search {
 			tokenStrings.add(prefixT.toString());
 		}
 		
-		// TODO: Doesn't work with prefix queries
-		// It's better to find a way how to boost by number of mathed **different** terms 
-		JSONObject crossFields = new JSONObject().put("multi_match", new JSONObject()
-				.put("query", StringUtils.join(tokenStrings, ' '))
-				.put("fields", Arrays.asList("locality", "street"))
-				.put("type", "cross_fields")
-				.put("_name", "cross_fields")
-				.put("boost", 1000.0));
+		if (numOfTokens >= 2) {
+			JSONObject crossFields = new JSONObject().put("multi_match", new JSONObject()
+					.put("query", StringUtils.join(tokenStrings, ' '))
+					.put("fields", Arrays.asList("locality", "street"))
+					.put("type", "cross_fields")
+					.put("_name", "cross_fields")
+					.put("boost", 1000.0));
+			multimatch.addShould(crossFields);
+		}
 		
-		multimatch.addShould(crossFields);
 
 		Map<String, Object> parameters = new HashMap<>();
 		parameters.put("adrpnt_boost", mainMatchAdrpntBoost);
 		parameters.put("hghnet_boost", mainMatchHghnetBoost);
-		parameters.put("plcpnt_boost", mainMatchPlcpntBoost);
+		parameters.put("plcpnt_boost", mainMatchPlcpntBoost * 100.0);
 		parameters.put("ref_boost", 0.001);
 		
 		String script = "_score * " 
