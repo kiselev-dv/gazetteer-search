@@ -5,8 +5,8 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 import groovy.text.SimpleTemplateEngine;
 
-import me.osm.gazetteer.psqlsearch.query.Replacer;
-import me.osm.gazetteer.psqlsearch.query.ReplacersFactory;
+import me.osm.gazetteer.search.query.Replacer;
+import me.osm.gazetteer.search.query.ReplacersFactory;
 
 class GroovyReplacersFactory implements ReplacersFactory {
 	
