@@ -33,6 +33,7 @@ import me.osm.gazetteer.search.backendquery.es.builders.StreetHasLocationFilter;
 import me.osm.gazetteer.search.backendquery.es.builders.TermsPart;
 import me.osm.gazetteer.search.esclient.ESServer;
 import me.osm.gazetteer.search.esclient.IndexHolder;
+import me.osm.gazetteer.search.esclient.POIClassIndexHolder;
 import me.osm.gazetteer.search.query.QToken;
 import me.osm.gazetteer.search.query.Query;
 import me.osm.gazetteer.search.query.QueryAnalyzer;
@@ -62,7 +63,7 @@ public class ESDefaultSearch implements Search {
 	private static double prefixEmptyNameLength = 5.0;
 	private static double prefixPlcpntBoost = 5.0;
 	private static double prefixRefBoost = 0.005;
-
+	
 	private static final String prefixScoreScript = 
 			  "params.scale * "
 			+ "doc['base_score'].value / "
@@ -105,7 +106,10 @@ public class ESDefaultSearch implements Search {
 			
 			return f;
 		}
+		
 	}
+	
+	private static final boolean POI_Exists = new POIClassIndexHolder().exists();
 	
 	@Override
 	public ResultsWrapper search(String queryString, int page, int pageSize, SearchOptions options) {
@@ -143,7 +147,7 @@ public class ESDefaultSearch implements Search {
 		});
 		
 		Collection<String> poiClasses = Collections.emptyList();
-		if (!options.isNoPoi()) {
+		if (POI_Exists && !options.isNoPoi()) {
 			poiClasses = queryPoiClasses(prefixT, allRequiredTokenStrings);
 		}
 
