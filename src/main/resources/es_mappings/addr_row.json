@@ -8,6 +8,22 @@
 						"type": "keyword"
 					}
 				}
+			},
+			{
+				"more_tags.fee": {
+					"path_match": "more_tags.fee",
+					"mapping": {
+						"type": "keyword"
+					}
+				}
+			},
+			{
+				"more_tags.date": {
+					"path_match": "more_tags.date",
+					"mapping": {
+						"type": "keyword"
+					}
+				}
 			}
 		],
 		"properties": {
@@ -26,6 +42,10 @@
 			"osm_id": {
 				"type": "keyword"
 			},
+			"poi_class": {
+				"type": "keyword"
+			},
+			
 			"full_text": {
 				"type": "text"
 			},
@@ -122,18 +142,33 @@
 				"type": "date"
 			},
 			
-			"import_id": {
-				"type": "keyword"
-			},
-	
 			"refs": {
 				"type": "object"
 			},
 			
 			"tags": {
 				"type": "object",
-				"enabled": false
-			}		
+				"enabled": false 
+			},
+			
+			"more_tags": {
+				"type": "object"
+			},
+			
+			"import": {
+				"type": "object",
+				"properties": {
+					"region": {
+						"type": "keyword"
+					},
+					"region_counter": {
+						"type": "integer"
+					},
+					"import_counter": {
+						"type": "integer"
+					}
+				}	
+			}	
 		}
 	}
 }

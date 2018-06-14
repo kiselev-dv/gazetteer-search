@@ -27,8 +27,12 @@ public class IndexAnalyzer {
 		ReplacersCompiler.compile(localityReplacers, new File("config/replacers/index/localityReplacers"));
 	} 
 	
-	public String toASCII(String original) {
-		return Junidecode.unidecode(original);
+	/**
+	 * "Bebić" to "Bebic"
+	 */
+	public static String removeDiactrics(String s) {
+		String normalized = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD);
+		return normalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
 	}
 	
 	public static final class Token {
@@ -41,16 +45,36 @@ public class IndexAnalyzer {
 		}
 	}
 	
-	public List<Token> normalizeLocationName(String original) {
-		return listTokens(original, localityReplacers);
+	public List<Token> normalizeLocationName(String original, boolean transliterate) {
+		return transliterate(listTokens(original, localityReplacers), transliterate);
+	}
+
+	public List<Token> normalizeStreetName(String original, boolean transliterate) {
+		return transliterate(listTokens(original, streetsReplacers), transliterate);
 	}
 	
-	public List<Token> normalizeStreetName(String original) {
-		return listTokens(original, streetsReplacers);
+	public List<Token> normalizeName(String original, boolean transliterate) {
+		return transliterate(listTokens(original, streetsReplacers), transliterate);
 	}
-	
-	public List<Token> normalizeName(String original) {
-		return listTokens(original, streetsReplacers);
+
+	private List<Token> transliterate(List<Token> listTokens, boolean transliterate) {
+		if (transliterate) {
+			List<Token> transliterated = new ArrayList<>();
+			
+			Set<String> distinct = new HashSet<>();
+			for (Token t : listTokens) {
+				transliterated.add(t);
+				
+				// Don't transliterate optionals
+				if (!t.optional && distinct.add(t.token)) {
+					transliterated.add(
+						new Token(Junidecode.unidecode(t.token), false));
+				}
+			}
+			
+			return transliterated;
+		}
+		return listTokens;
 	}
 
 	private Set<String> findOptionals(Set<String> uniqueTokens) {
@@ -70,7 +94,7 @@ public class IndexAnalyzer {
 	}
 	
 	private List<Token> listTokens(String original, List<Replacer> replacers) {
-		original = StringUtils.stripToEmpty(original);
+		original = removeDiactrics(StringUtils.stripToEmpty(original));
 		
 		String replaced = StringUtils.join(transform(original.toLowerCase(), replacers), ' ');
 		replaced = original.toLowerCase() + " " + replaced;
@@ -95,6 +119,7 @@ public class IndexAnalyzer {
 		// Look for optional tokens in the rest of the tokens
 		optTokens.addAll(findOptionals(tokens));
 		
+		Set<String> distinct = new HashSet<>();
 		List<Token> result = new ArrayList<>();
 		for (String token : StringUtils.split(transformed, QueryAnalyzerImpl.tokenSeparators)) {
 			String text = StringUtils.stripToNull(token);
@@ -106,8 +131,9 @@ public class IndexAnalyzer {
 					optional = true;
 				}
 				
-				result.add(new Token(text, optional));
-				
+				if(distinct.add(text)) {
+					result.add(new Token(text, optional));
+				}
 			}
 		}
 		

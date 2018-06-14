@@ -127,7 +127,7 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 		
 		String original = q;
 		
-		q = q.toLowerCase();
+		q = IndexAnalyzer.removeDiactrics(q.toLowerCase());
 		
 		for(String[] r : charReplaces) {
 			q = StringUtils.replace(q, r[0], r[1]);

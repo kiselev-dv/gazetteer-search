@@ -1,0 +1,14 @@
+# Paths are relative to work dir
+# jar - use internal catalog
+catalog-path: jar
+
+poi:
+  import: true
+  parse-tags: true
+  
+  ignore-types:
+   - fire_hydrant
+   - emergency_phone
+   - fire_water_pond
+  ignore-subtree:
+   -   

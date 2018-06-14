@@ -1,0 +1,58 @@
+{
+	"import": {
+		"default_hierarchy": "osm-ru",
+		"exclude": [
+			"fire_hydrant", 
+			"emergency_phone", 
+			{
+				"type": "fire_water_pond",
+				"keep_named": true 
+			},
+			{
+				"subtree": "road_obstacles"
+			},
+			{
+				"subtree": "tourizm",
+				"keep_named": true, 
+				"ignore_children": true
+			},
+			{
+				"subtree": "natural",
+				"keep_named": true
+			},
+			{
+				"subtree": "infrastructure"
+			}
+		],
+		"include": [
+			{
+				"type": "lighthouse",
+				"keep_named": true 
+			},
+			{
+				"type": "camp_site"
+			},
+			{
+				"type": "bridge",
+				"keep_named": true 
+			},
+			{
+				"type": "tunnel",
+				"keep_named": true 
+			},
+			{
+				"type": "mountain_pass",
+				"keep_named": true
+			},
+			{
+				"type": "ford",
+				"keep_named": true
+			},
+			{
+				"type": "viewpoint",
+				"keep_named": true
+			}
+		]
+	}
+
+}

@@ -11,58 +11,53 @@ import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.search.MultiSearchRequestBuilder;
 import org.elasticsearch.action.search.MultiSearchResponse.Item;
-import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.sort.SortBuilders;
 import org.json.JSONObject;
 
 import me.osm.gazetteer.search.backendquery.es.builders.BooleanPart;
 import me.osm.gazetteer.search.esclient.ESServer;
 import me.osm.gazetteer.search.esclient.IndexHolder;
+import me.osm.gazetteer.search.imp.PagedScroll;
 import me.osm.gazetteer.search.util.TimePeriodFormatter;
 
 public class UpdateStreetsUsage {
 	private static final int pageSize = 1000;
 	
 	private TransportClient client = ESServer.getInstance().client();
+	private long counter;
+
+	private String region;
 	
+	public UpdateStreetsUsage(String region) {
+		this.region = region;
+	}
+
 	public static void main(String[] args) {
-		new UpdateStreetsUsage().run();
+		new UpdateStreetsUsage(null).run();
 	}
 
 	@SuppressWarnings("unchecked")
-	private void run() {
-		
-		SearchRequestBuilder query = buildHighwayRequest()
-			.setFrom(0).setSize(0);
+	public void run() {
 		
 		long start = new Date().getTime();
-		long totalHighways = query.get().getHits().getTotalHits();
-		long counter = 0;
+		counter = 0;
 		
+		PagedScroll pageScroll = new PagedScroll(pageSize, "hghnet", 
+				new String[] {"id", "refs", "locality", "street"});
 		
-		String esid = null;
-		for(int page = 0; page <= totalHighways / pageSize; page++) {
+		pageScroll.setRegion(region);
+		
+		pageScroll.scroll(higwaysResponse -> {
 			
-			SearchRequestBuilder q = buildHighwayRequest()
-					.setSize(pageSize);
-			
-			if (esid != null) {
-				q.searchAfter(new Object[] {esid});
-			}
-			
-			SearchResponse higwaysResponse = q.get();
+			long totalHighways = higwaysResponse.getHits().getTotalHits();
 			
 			BulkRequestBuilder bulk = client.prepareBulk();
 			MultiSearchRequestBuilder multySearch = client.prepareMultiSearch();
 
 			for(SearchHit hit : higwaysResponse.getHits()) {
-				counter++;
-
-				esid = hit.getId();
 				
 				Collection<String> refs = (Collection<String>)((Map<String, ?>)hit.getSourceAsMap().get("refs")).get("street");
 				if (refs != null) {
@@ -114,7 +109,7 @@ public class UpdateStreetsUsage {
 			long eta = new Double((totalHighways - counter) * perLine).longValue();
 			
 			System.out.println(String.format("Lines %d, %.3f ms per line, ETA %s", counter, perLine, TimePeriodFormatter.printDuration(eta)));
-		}
+		});
 		
 	}
 
@@ -128,16 +123,6 @@ public class UpdateStreetsUsage {
 		}
 		
 		return false;
-	}
-
-	private SearchRequestBuilder buildHighwayRequest() {
-		JSONObject q = new JSONObject().put("term", new JSONObject().put("type", "hghnet"));
-		
-		return client.prepareSearch(IndexHolder.ADDRESSES_INDEX)
-			.setTypes(IndexHolder.ADDR_ROW_TYPE)
-			.setFetchSource(new String[] {"id", "refs", "locality", "street"}, new String[] {})
-			.addSort(SortBuilders.fieldSort("_id"))
-			.setQuery(QueryBuilders.wrapperQuery(q.toString()));
 	}
 
 }

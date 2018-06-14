@@ -18,15 +18,19 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import me.osm.gazetteer.search.GazetteerSearch.ImportOptions;
 import me.osm.gazetteer.search.esclient.AddressesIndexHolder;
 import me.osm.gazetteer.search.esclient.ESServer;
 import me.osm.gazetteer.search.esclient.IndexHolder;
+import me.osm.gazetteer.search.imp.ImportMode;
+import me.osm.gazetteer.search.imp.ImportOptions;
 import me.osm.gazetteer.search.util.TimePeriodFormatter;
 
 public class AddressesImporter {
@@ -34,6 +38,7 @@ public class AddressesImporter {
 	private static final Logger log = LoggerFactory.getLogger(AddressesImporter.class);
 	
 	private ImportOptions options;
+	private ImportObjectParser parser;
 
 	private int batchSize = 1000;
 	private int total = 0;
@@ -41,8 +46,6 @@ public class AddressesImporter {
 
 	private int addresses = 0;
 
-	private ImportObjectParser parser = new ImportObjectParser();
-	
 	private TransportClient client = ESServer.getInstance().client();
 	private volatile BulkRequestBuilder bulk = client.prepareBulk();
 	private static final IndexHolder indexHolder = new AddressesIndexHolder();
@@ -63,6 +66,7 @@ public class AddressesImporter {
 
 	public AddressesImporter(ImportOptions options) {
 		this.options = options;
+		this.parser = new ImportObjectParser(this.options);
 	}
 	
 	public void run() throws ImportException {
@@ -77,6 +81,17 @@ public class AddressesImporter {
 		if(!indexHolder.exists()) {
 			log.info("Create index");
 			indexHolder.create();
+		}
+		
+		if (options.getMode() == ImportMode.delete) {
+			if (options.getRegion() != null) {
+				log.info("Drop region {}", options.getRegion());
+				BulkByScrollResponse bulkByScrollResponse = DeleteByQueryAction.INSTANCE.newRequestBuilder(client)
+					.filter(QueryBuilders.matchQuery("import.region", options.getRegion()))
+					.source(IndexHolder.ADDRESSES_INDEX).get();
+				
+				log.info("Deleted {}", bulkByScrollResponse.getDeleted());
+			}
 		}
 		
 		this.started = new Date().getTime();
@@ -127,10 +142,20 @@ public class AddressesImporter {
 			String duration = TimePeriodFormatter.printDuration(new Date().getTime() - this.started);
 			log.info("{} lines skiped", skip);
 			log.info("Import done in {}", duration);
+			
+			fileRead();
+			
+			new UpdateStreetsUsage(this.options.getRegion()).run();
 		}
 		catch (Exception e) {
 			throw new ImportException(e);
 		}
+	}
+
+	private void fileRead() {
+		// Do nothing for now
+		// Later if we have something like swap
+		// whole region we'll have to do some actions here
 	}
 
 	private BufferedReader getStreamReader() throws FileNotFoundException, IOException, UnsupportedEncodingException {
@@ -159,10 +184,11 @@ public class AddressesImporter {
 	}
 	
 	protected void submitBulk() {
-		
-		BulkResponse response = bulk.get();
-		if(response.hasFailures()) {
-			throw new Error(response.buildFailureMessage());
+		if (bulk.numberOfActions() > 0) {
+			BulkResponse response = bulk.get();
+			if(response.hasFailures()) {
+				throw new Error(response.buildFailureMessage());
+			}
 		}
 		
 		log.info("{} rows imported", String.format(Locale.US, "%,9d", total));

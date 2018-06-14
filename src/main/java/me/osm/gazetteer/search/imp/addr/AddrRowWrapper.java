@@ -4,7 +4,6 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
@@ -49,7 +48,6 @@ public class AddrRowWrapper {
 	private List<String> poiClasses;
 	
 	private String hnMatch;
-	private List<String> poiKeywords;
 
 	private JSONObject refs;
 	private int nameAggIndex;
@@ -59,6 +57,11 @@ public class AddrRowWrapper {
 	private List<Token> admin2;
 	private List<Token> localAdmin;
 	private boolean streetHasLoc;
+
+	private List<String> translatedPoiClasses;
+	private JSONObject moreTasgs;
+	private Collection<String> poiKeywords;
+	private ImportMeta imp;
 
 	public void setId(String id) {
 		this.id = id;
@@ -154,10 +157,6 @@ public class AddrRowWrapper {
 
 	public void setHNMatch(String match) {
 		this.hnMatch = match;
-	}
-
-	public void setPoiKeywords(List<String> keywords) {
-		this.poiKeywords = keywords;
 	}
 
 	public void setRefs(JSONObject refs) {
@@ -260,7 +259,7 @@ public class AddrRowWrapper {
 		return hnMatch;
 	}
 
-	public List<String> getPoiKeywords() {
+	public Collection<String> getPoiKeywords() {
 		return poiKeywords;
 	}
 
@@ -272,6 +271,7 @@ public class AddrRowWrapper {
 		JSONObject obj = new JSONObject();
 		
 		obj.put("id", id);
+		obj.put("import", imp);
 		obj.put("type", type);
 		obj.put("feature_id", featureId);
 		
@@ -312,8 +312,18 @@ public class AddrRowWrapper {
 
 		obj.put("refs", refs);
 		
-		obj.put("poi_classes", poiClasses);
-		obj.put("poi_keywords", poiKeywords);
+		obj.put("poi_class", poiClasses);
+
+		if (translatedPoiClasses != null) {
+			obj.put("poi_class_trans", translatedPoiClasses);
+		}
+		if (moreTasgs != null) {
+			obj.put("more_tags", moreTasgs);
+		}
+		if (poiKeywords != null) {
+			obj.put("poi_keywords", poiKeywords);
+		}
+		
 		obj.put("hm_match", hnMatch);
 		
 		obj.put("created", timestamp.getTime());
@@ -374,6 +384,22 @@ public class AddrRowWrapper {
 
 	public void setStreetHasLocalityName(boolean streetContainsLoc) {
 		this.streetHasLoc = streetContainsLoc;
+	}
+
+	public void setPoiClassTranslated(List<String> translatedPoiClasses) {
+		this.translatedPoiClasses = translatedPoiClasses;
+	}
+
+	public void setMoreTags(JSONObject moreTags) {
+		this.moreTasgs = moreTags;
+	}
+	
+	public void setPoiKeywords(Collection<String> keywords) {
+		this.poiKeywords = keywords;
+	}
+
+	public void setImport(ImportMeta imp) {
+		this.imp = imp;
 	}
 	
 }

@@ -2,10 +2,8 @@ package me.osm.gazetteer.search.imp.addr;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,7 +20,11 @@ import org.slf4j.LoggerFactory;
 
 import me.osm.gazetteer.search.imp.DefaultScoreBuilder;
 import me.osm.gazetteer.search.imp.ImportException;
+import me.osm.gazetteer.search.imp.ImportOptions;
+import me.osm.gazetteer.search.imp.POIIgnore;
 import me.osm.gazetteer.search.imp.ScoreBuilder;
+import me.osm.gazetteer.search.imp.poi.PoiInfo;
+import me.osm.gazetteer.search.imp.poi.UpdatePOITagsAndClasses;
 import me.osm.gazetteer.search.query.IndexAnalyzer;
 import me.osm.gazetteer.search.query.IndexAnalyzer.Token;
 
@@ -36,48 +38,77 @@ public class ImportObjectParser {
 	private Map<Integer, Integer> nameAggHghnet = new HashMap<>();
 	private Map<Integer, Integer> nameAggHghway = new HashMap<>();
 
+	private ImportOptions importOptions;
+	private POIIgnore poiIgnore;
+
+	private List<String> languages;
+
+	private Set<String> skip;
+	
+	private UpdatePOITagsAndClasses poiParser = null;
+	
+	public ImportObjectParser(ImportOptions options) {
+		this.importOptions = options;
+		this.languages = importOptions.getLanguages();
+		
+		skip = new HashSet<>();
+		skip.add("mtainf");
+		
+		if (importOptions.isSkipPoi()) {
+			skip.add("poipnt");
+		}
+		else {
+			poiParser = new UpdatePOITagsAndClasses(importOptions.getOSMDoc());
+			poiIgnore = importOptions.getPoiCfg();
+		}
+	}
+
 	public AddrRowWrapper parseAddress(JSONObject jsonObject) throws ImportException {
 		String type = jsonObject.getString("type");
 			
 		try {
 			
-			String osm_type = jsonObject.optString("osm_type");
 			
-			Set<String> skip = new HashSet<>(Arrays.asList("mtainf", "hghway", "poipnt"));
-
 			if ("mtainf".equals(type)) {
 				log.info("Import metainf: {}", jsonObject);
 				return null;
 			}
 			
+			String osm_type = jsonObject.optString("osm_type");
 			if (osm_type == null || skip.contains(type)) {
 				return null;
 			}
 			
 			long osm_id = jsonObject.getLong("osm_id");
 			
-			JSONObject addrObject = jsonObject.optJSONObject("address");
+			NamesAccessor accessor = new NamesAccessor(jsonObject, languages);
 			
-			String fullText = getAddrFullText(addrObject);
-			String localityName = jsonObject.optString("locality_name");
-			List<Token> localityTokens = indexAnalyzer.normalizeLocationName(localityName);
+			String fullText = accessor.getAddrFullText();
+			
+			String localityName = accessor.getLocality();
+			List<Token> localityTokens = indexAnalyzer.normalizeLocationName(
+					localityName, importOptions.isTranslit());
 
 			String housenumber = jsonObject.optString("housenumber");
-			String streetName = jsonObject.optString("street_name");
-			List<Token> streetTokens = indexAnalyzer.normalizeStreetName(streetName);
+			String streetName = accessor.getStreet();
+			List<Token> streetTokens = indexAnalyzer.normalizeStreetName(
+					streetName, importOptions.isTranslit());
 			
 			JSONObject optTags = jsonObject.optJSONObject("tags");
-			String name = optTags != null ? optTags.optString("name") : null;
+			String name = accessor.getName();
 			String ref = optTags != null ? optTags.optString("ref") : null;
 			
-			List<Token> nameTokens = indexAnalyzer.normalizeName(name);
-			List<Token> nameAltTokens = indexAnalyzer.normalizeName(getAltNames(jsonObject));
+			List<Token> nameTokens = indexAnalyzer.normalizeName(
+					name, importOptions.isTranslit());
+			List<Token> nameAltTokens = indexAnalyzer.normalizeName(
+					accessor.getAltNames(), importOptions.isTranslit());
 			
 			boolean isPoi = "poipnt".equals(type);
-			if (isPoi || notEmpty(jsonObject)) {
+			if (isPoi || !accessor.isEmpty()) {
 				
 				AddrRowWrapper subj = new AddrRowWrapper();
 				
+				subj.setImport(new ImportMeta(importOptions.getRegion(), 0, 0));
 				fillCommonField(subj, jsonObject, type, osm_type, osm_id);
 				
 				subj.setFullText(fullText);
@@ -95,17 +126,20 @@ public class ImportObjectParser {
 				
 				subj.setStreetHasLocalityName(isStreetContainsLoc(streetTokens, localityTokens));
 				
-				List<Token> admin0 = indexAnalyzer.normalizeLocationName(jsonObject.optString("admin0_name"));
+				List<Token> admin0 = indexAnalyzer.normalizeLocationName(
+						accessor.getAdmin0(), importOptions.isTranslit());
 				subj.setAdmin0(admin0);
 				
-				List<Token> admin1 = indexAnalyzer.normalizeLocationName(jsonObject.optString("admin1_name"));
+				List<Token> admin1 = indexAnalyzer.normalizeLocationName(
+						accessor.getAdmin1(), importOptions.isTranslit());
 				subj.setAdmin1(admin1);
 				
-				List<Token> admin2 = indexAnalyzer.normalizeLocationName(jsonObject.optString("admin2_name"));
-				
+				List<Token> admin2 = indexAnalyzer.normalizeLocationName(
+						accessor.getAdmin2(), importOptions.isTranslit());
 				subj.setAdmin2(admin2);
 				
-				List<Token> localAdmin = indexAnalyzer.normalizeLocationName(jsonObject.optString("local_admin_name"));
+				List<Token> localAdmin = indexAnalyzer.normalizeLocationName(
+						accessor.getLocalAdminName(), importOptions.isTranslit());
 				subj.setLocalAdmin(localAdmin);
 				
 				subj.setNeighbourhood(null);
@@ -114,30 +148,33 @@ public class ImportObjectParser {
 
 				fillLonLat(subj, jsonObject);
 				
-				
 				if (isPoi) {
-					setPoiClasses(subj, jsonObject);
-					setPoiKeywords(subj, jsonObject);
-					//more_tags
-					
-					// TODO
-					subj.setHNMatch("exact");
+					List<String> classes = setPoiClasses(subj, jsonObject);
+					subj.setHNMatch(jsonObject.optString("poi_addr_match"));
+					if (classes != null) {
+						if (poiIgnore != null) {
+							boolean keep = poiIgnore.keep(classes, StringUtils.stripToNull(name) != null);
+							if (!keep) {
+								return null;
+							}
+						}
+						
+						if (poiParser != null) {
+							PoiInfo poiInfo = poiParser.getInfo(jsonObject);
+							subj.setPoiClassTranslated(poiInfo.getTranslatedPoiClasses());
+							subj.setMoreTags(poiInfo.getMoreTags());
+							subj.setPoiKeywords(poiInfo.getKeywords());
+						}
+					}
 				}
 				else {
-					subj.setAddrSchema("regular");
+					String[] split = StringUtils.splitByWholeSeparator(jsonObject.getString("id"), "--");
+					subj.setAddrSchema(split.length > 1 ? split[1] : "regular");
 				}
 				
 				fillNameAggIndex(type, nameTokens, subj);
 
-				/* TODO find is there any addresses connected
-				 * to highway, and debuf them, not depends
-				 * on ref existance
-				 */
 				fillRefs(subj, jsonObject);
-				
-				if("poipnt".equals(type)) {
-					fillPoiPoint(jsonObject);
-				}
 				
 				DateTime dateTimeTimestamp = new DateTime(jsonObject.getString("timestamp"));
 				subj.setTimestamp(new Timestamp(dateTimeTimestamp.getMillis()));
@@ -149,7 +186,9 @@ public class ImportObjectParser {
 				}
 				
 				subj.setScoreBase(score);
-
+				
+				accessor.trimNames();
+				
 				return subj;
 			}
 			
@@ -159,22 +198,6 @@ public class ImportObjectParser {
 		}
 
 		return null;
-	}
-
-	private void fillPoiPoint(JSONObject jsonObject) {
-//		obj.put("poi_class_trans", new JSONArray(getPoiTypesTranslated(obj)));
-//		
-//		List<Feature> poiClassess = listPoiClassesOSMDoc(obj);
-//		Map<String, List<Val>> moreTagsVals = new HashMap<String, List<Val>>();
-//		JSONObject moreTags = FACADE.parseMoreTags(poiClassess, obj.getJSONObject("tags"), 
-//				POI_STATISTICS, moreTagsVals);
-//		
-//		obj.put("more_tags", moreTags);
-//		
-//		LinkedHashSet<String> keywords = new LinkedHashSet<String>();
-//		FACADE.collectKeywords(poiClassess, moreTagsVals, keywords, null);
-//		
-//		obj.put("poi_keywords", new JSONArray(keywords));
 	}
 
 	private static boolean isStreetContainsLoc(List<Token> streetTokens, List<Token> localityTokens) {
@@ -238,16 +261,14 @@ public class ImportObjectParser {
 		return -1;
 	}
 
-	private void setPoiClasses(final AddrRowWrapper subj, JSONObject jsonObject) {
-		JSONArray classesJSON = jsonObject.getJSONArray("poi_class");
-		List<String> classes= readJSONTextArray(classesJSON);
-		subj.setPoiClasses(classes);
-	}
-
-	private void setPoiKeywords(final AddrRowWrapper subj, JSONObject jsonObject) {
-		JSONArray poiKeywords = jsonObject.getJSONArray("poi_keywords");
-		List<String> keywords = readJSONTextArray(poiKeywords);
-		subj.setPoiKeywords(keywords);
+	private List<String> setPoiClasses(final AddrRowWrapper subj, JSONObject jsonObject) {
+		JSONArray classesJSON = jsonObject.optJSONArray("poi_class");
+		if (classesJSON != null) {
+			List<String> classes = readJSONTextArray(classesJSON);
+			subj.setPoiClasses(classes);
+			return classes;
+		}
+		return null;
 	}
 
 	private List<String> readJSONTextArray(JSONArray poiKeywords) {
@@ -304,42 +325,6 @@ public class ImportObjectParser {
 		}
 		
 		return result;
-	}
-
-	private String getAddrFullText(JSONObject addrObject) {
-		return addrObject != null ? addrObject.optString("longText") : null;
-	}
-
-	private boolean notEmpty(JSONObject jsonObject) {
-		
-		JSONObject addrObject = jsonObject.optJSONObject("address");
-		String fullText = getAddrFullText(addrObject);
-		String localityName = jsonObject.optString("locality_name");
-		String housenumber = jsonObject.optString("housenumber");
-		String streetName = jsonObject.optString("street_name");
-		
-		return fullText != null && (housenumber != null || streetName != null || localityName != null);
-	}
-
-	private String getAltNames(JSONObject jsonObject) {
-		JSONObject tags = jsonObject.optJSONObject("tags");
-
-		if (tags != null) {
-			List<String> names = new ArrayList<>();
-			
-			for (Iterator<String> iterator = tags.keys(); iterator.hasNext();) {
-				String key = iterator.next();
-				if (!"name".equals(key) && StringUtils.contains(key, "name")) {
-					names.add(tags.getString(key));
-				}
-			}
-			
-			if(!names.isEmpty()) {
-				return StringUtils.join(names, ' ');
-			}
-		}
-		
-		return null;
 	}
 
 	private void fillCommonField(AddrRowWrapper subj, 
