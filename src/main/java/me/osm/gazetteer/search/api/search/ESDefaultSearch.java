@@ -42,7 +42,7 @@ import me.osm.gazetteer.search.query.QueryAnalyzerImpl;
 public class ESDefaultSearch implements Search {
 
 	private static final String[] SOURCE_FIELDS_BASE = new String[] {
-			"full_text", "osm_id", "json.name", "base_score", 
+			"full_text", "osm_id", "json.name", "base_score", "refs",
 			"type", "centroid", "id", "json.address.text"};
 
 	private static final String MATCH_STREET_QUERY_NAME = "match_street";
@@ -153,22 +153,27 @@ public class ESDefaultSearch implements Search {
 
 		List<JSONObject> coallesceQueries = new ArrayList<>();
 		
-		coallesceQueries.add(buildQuery(
-				query, numberTokens, 
-				optionalTokens, requiredTokens,
-				allRequiredTokenStrings, prefixT, 
-				QueryBuilderFlags.getFlags(QueryBuilderFlags.ONLY_ADDR_POINTS, QueryBuilderFlags.FUZZY)).getPart());
+		Collection<String> references = options.getReferences();
+		coallesceQueries.add(addReferencesFilter(buildQuery(
+					query, numberTokens, 
+					optionalTokens, requiredTokens,
+					allRequiredTokenStrings, prefixT, 
+					QueryBuilderFlags.getFlags(QueryBuilderFlags.ONLY_ADDR_POINTS, QueryBuilderFlags.FUZZY)), 
+				references).getPart());
 		
-		coallesceQueries.add(buildQuery(
-				query, numberTokens, 
-				optionalTokens, requiredTokens,
-				allRequiredTokenStrings, prefixT, 
-				QueryBuilderFlags.getFlags(QueryBuilderFlags.STREETS_WITH_NUMBERS, QueryBuilderFlags.FUZZY)).getPart());
+		coallesceQueries.add(addReferencesFilter(buildQuery(
+					query, numberTokens, 
+					optionalTokens, requiredTokens,
+					allRequiredTokenStrings, prefixT, 
+					QueryBuilderFlags.getFlags(QueryBuilderFlags.STREETS_WITH_NUMBERS, QueryBuilderFlags.FUZZY)), 
+				references).getPart());
 		
-		coallesceQueries.add(buildQuery(query, numberTokens, optionalTokens, requiredTokens,
-				allRequiredTokenStrings, prefixT, QueryBuilderFlags.getFlags(
-						QueryBuilderFlags.FUZZY, QueryBuilderFlags.STREET_OR_LOCALITY)).getPart());
-		
+		coallesceQueries.add(addReferencesFilter(buildQuery(
+					query, numberTokens, optionalTokens, requiredTokens,
+					allRequiredTokenStrings, prefixT, 
+					QueryBuilderFlags.getFlags(QueryBuilderFlags.FUZZY, QueryBuilderFlags.STREET_OR_LOCALITY)), 
+				references).getPart());
+
 		String[] sourceFields = SOURCE_FIELDS_BASE;
 		if (options.isVerboseAddress()) {
 			sourceFields = ArrayUtils.add(SOURCE_FIELDS_BASE, "json.address");
@@ -203,6 +208,16 @@ public class ESDefaultSearch implements Search {
 		results.setAnswerTime(new Date().getTime() - startms);
 		
 		return results;
+	}
+
+	private BooleanPart addReferencesFilter(BooleanPart q, Collection<String> references) {
+		if (references != null && !references.isEmpty()) {
+			q.addFilter(new JSONObject().put("query_string", 
+					new JSONObject()
+						.put("fields", Arrays.asList("refs*"))
+						.put("query", StringUtils.join(references, "OR"))));
+		}
+		return q;
 	}
 
 	private Collection<String> queryPoiClasses(QToken prefixT, List<String> allRequiredTokenStrings) {
@@ -551,7 +566,8 @@ public class ESDefaultSearch implements Search {
 				resultFullText, 
 				sourceAsMap.get("osm_id").toString(),
 				new GeoPoint(asDouble(centoidfield.get("lat")), asDouble(centoidfield.get("lon"))),
-				hit.getMatchedQueries());
+				hit.getMatchedQueries(),
+				(Map)sourceAsMap.get("refs"));
 	}
 	
 	private double asDouble(Object v) {

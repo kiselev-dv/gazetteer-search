@@ -108,7 +108,6 @@ public class ImportObjectParser {
 				
 				AddrRowWrapper subj = new AddrRowWrapper();
 				
-				subj.setImport(new ImportMeta(importOptions.getRegion(), 0, 0));
 				fillCommonField(subj, jsonObject, type, osm_type, osm_id);
 				
 				subj.setFullText(fullText);

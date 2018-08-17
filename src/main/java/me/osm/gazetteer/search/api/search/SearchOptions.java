@@ -1,5 +1,7 @@
 package me.osm.gazetteer.search.api.search;
 
+import java.util.Collection;
+
 public class SearchOptions {
 	
 	private boolean withPrefix = true; 
@@ -10,6 +12,8 @@ public class SearchOptions {
 	private boolean fuzzy = true;
 	private boolean rangeHouseNumbers = true;
 	private boolean verboseAddress;
+	
+	private Collection<String> references = null;
 	
 	public Double getLon() {
 		return lon;
@@ -58,6 +62,13 @@ public class SearchOptions {
 	}
 	public boolean isVerboseAddress() {
 		return verboseAddress;
+	}
+	
+	public Collection<String> getReferences() {
+		return references;
+	}
+	public void setReferences(Collection<String> references) {
+		this.references = references;
 	}
 	
 }

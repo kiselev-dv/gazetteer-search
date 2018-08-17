@@ -42,7 +42,7 @@ public class ImportOptions {
 	private boolean translit;
 	
 	@Parameter(names={"--mode"}, description="Import mode")
-	private ImportMode importMode = ImportMode.delete;
+	private ImportMode importMode = ImportMode.update;
 
 	public boolean isDrop() {
 		return drop;

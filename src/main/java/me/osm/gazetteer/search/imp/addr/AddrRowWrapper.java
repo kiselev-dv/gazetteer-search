@@ -271,7 +271,7 @@ public class AddrRowWrapper {
 		JSONObject obj = new JSONObject();
 		
 		obj.put("id", id);
-		obj.put("import", imp);
+		obj.put("import", imp.getJsonForIndex());
 		obj.put("type", type);
 		obj.put("feature_id", featureId);
 		

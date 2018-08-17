@@ -33,6 +33,7 @@ public class ResultsWrapper {
 		public GeoPoint centroid;
 		public Map address;
 		public String name;
+		public Map refs;
 	}
 	
 	public ResultsWrapper() {
@@ -47,12 +48,12 @@ public class ResultsWrapper {
 
 	public void addResultsRow(double rank, double baseScore, 
 			String name, Map addressAsMap, String fullText, String osmId, 
-			GeoPoint geoPoint, String[] matchedQueries) {
+			GeoPoint geoPoint, String[] matchedQueries, Map refs) {
 		
 		SearchResultRow row = new SearchResultRow();
 		
 		row.name = name;
-
+		
 		row.rank = rank;
 		row.full_text = fullText;
 		row.osm_id = osmId;
@@ -61,6 +62,7 @@ public class ResultsWrapper {
 		row.centroid = geoPoint;
 		
 		row.address = addressAsMap;
+		row.refs = refs;
 				
 		rows.add(row);
 	}

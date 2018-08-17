@@ -1,19 +1,11 @@
 package me.osm.gazetteer.search.csv;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.LineNumberReader;
 import java.io.PrintWriter;
 import java.util.Date;
 import java.util.List;
 
-import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.IOUtils;
@@ -22,10 +14,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 
 import me.osm.gazetteer.search.api.ResultsWrapper;
 import me.osm.gazetteer.search.api.ResultsWrapper.SearchResultRow;
@@ -51,79 +39,8 @@ public class CSVGeocode {
 		}
 	}
 	
-	@Parameters(commandDescription="Geocode csv/tsv")
-	public static final class MassGeocodeOptions {
-		
-		@Parameter(names= {"--source", "-s"}, description="Path to csv/tsv to geocode.")
-		private String source = "-";
-		
-		@Parameter(names= {"--no-header", "-H"}, description="There is no column names in header")
-		private boolean noHeader = false;
-		
-		@Parameter(names= {"--query-column", "-q"}, description="Column with query")
-		private String requestColumn = "query";
-		
-		@Parameter(names= {"--compare", "-c"}, description="CSV aready has being geocoded, comapre lat/lon")
-		private boolean compare = false;
-		
-		@Parameter(names= {"--tsv", "-t"}, description="Use Tab separated values format")
-		private boolean tsv = false;
-		
-		@Parameter(names= {"--compare-lon", "-o"})
-		private String lonHeader = "ref_lon";
-		
-		@Parameter(names= {"--compare-lat", "-a"})
-		private String latHeader = "ref_lat";
-		
-		@Parameter(names= {"--error-report", "-e"})
-		private String errorReport = "errors.html";
-
-		private int totalLines = -1;
-
-		public InputStream getInputStream() throws FileNotFoundException {
-			if ("-".equals(this.source)) {
-				return System.in;
-			}
-			else {
-				try (LineNumberReader count = new LineNumberReader(new FileReader(new File(this.source)));) {
-					while (count.skip(Long.MAX_VALUE) > 0){}
-					totalLines = count.getLineNumber() + 1;
-				}
-				catch (IOException ioe) {
-					throw new RuntimeException(ioe);
-				}
-				return new FileInputStream(new File(this.source));
-			}
-		}
-		
-		public CSVParser getParser() throws FileNotFoundException, IOException {
-			CSVFormat format = null;
-			if (this.tsv || this.source.endsWith(".tsv")) {
-				format = CSVFormat.TDF;
-			}
-			else {
-				format = CSVFormat.EXCEL;
-			}
-			
-			if (!this.noHeader) {
-				format = format.withFirstRecordAsHeader();
-			}
-			
-			return new CSVParser(new InputStreamReader(getInputStream()), format);
-		}
-	}
-	
-	public static void main(String[] args) {
-		
+	public CSVGeocode(MassGeocodeOptions options) {
 		try {
-			MassGeocodeOptions options = new MassGeocodeOptions();
-			
-			JCommander commander = JCommander.newBuilder()
-					.programName("csv-geocode")
-					.addObject(options)
-					.build();
-			
-			commander.parse(args);
 			
 			SearchOptions searchOptions = new SearchOptions();
 			searchOptions.setWithPrefix(false);
@@ -157,7 +74,7 @@ public class CSVGeocode {
 						double refLat = Double.parseDouble(record.get(options.latHeader));
 						
 						Double distance = distance(refLon, refLat, firstRow.centroid.lon(), firstRow.centroid.lat());
-						if (distance > 250) {
+						if (distance > options.treshold) {
 							fails++;
 							boolean foundOnFirstPage = false;
 							
@@ -184,7 +101,7 @@ public class CSVGeocode {
 								Double rowD = distance(refLon, refLat, row.centroid.lon(), row.centroid.lat());
 								errRow.put("distance", rowD.intValue());
 								
-								if (rowD.intValue() <= 250) {
+								if (rowD.intValue() <= options.treshold) {
 									foundOnFirstPage = true;
 								}
 							}
@@ -245,6 +162,11 @@ public class CSVGeocode {
 		catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+
+	public static void main(String[] args) {
+		
+		
 		
 	}
 	

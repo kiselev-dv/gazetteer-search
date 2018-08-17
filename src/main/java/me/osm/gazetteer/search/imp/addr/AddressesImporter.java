@@ -9,18 +9,28 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.io.IOUtils;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
+import org.elasticsearch.action.search.SearchRequestBuilder;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.TermQueryBuilder;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;
 import org.elasticsearch.index.reindex.DeleteByQueryAction;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -51,6 +61,8 @@ public class AddressesImporter {
 	private static final IndexHolder indexHolder = new AddressesIndexHolder();
 
 	private long started;
+	
+	private Set<String> batchObjectIds = new HashSet<>();
 	
 	public static final class ImportException extends RuntimeException {
 		public ImportException(Exception se) {
@@ -86,6 +98,7 @@ public class AddressesImporter {
 		if (options.getMode() == ImportMode.delete) {
 			if (options.getRegion() != null) {
 				log.info("Drop region {}", options.getRegion());
+				
 				BulkByScrollResponse bulkByScrollResponse = DeleteByQueryAction.INSTANCE.newRequestBuilder(client)
 					.filter(QueryBuilders.matchQuery("import.region", options.getRegion()))
 					.source(IndexHolder.ADDRESSES_INDEX).get();
@@ -99,7 +112,9 @@ public class AddressesImporter {
 		try {
 			
 			BufferedReader reader = getStreamReader();
-
+			
+			ImportMeta imp = createImportMetaObject();
+			
 			try {
 				String line = reader.readLine();
 				while (line != null) {
@@ -111,6 +126,11 @@ public class AddressesImporter {
 						
 						if(row != null) {
 							total ++;
+
+							row.setImport(imp);
+							if(options.getMode() == ImportMode.update) {
+								batchObjectIds.add(row.getId());
+							}
 
 							IndexRequestBuilder index = client
 									.prepareIndex(indexHolder.getIndex(), indexHolder.getType())
@@ -130,7 +150,17 @@ public class AddressesImporter {
 					
 					line = reader.readLine();
 				}
+				
 				this.submitBulk();
+
+				if (options.getMode() == ImportMode.update) {
+					BoolQueryBuilder filter = QueryBuilders.boolQuery();
+					filter.must(QueryBuilders.termQuery("import.region", getRegion()));
+					filter.must(QueryBuilders.rangeQuery("import.region_counter").lt(imp.getRegionCounter()));
+					
+					DeleteByQueryAction.INSTANCE.newRequestBuilder(client).source(IndexHolder.ADDRESSES_INDEX)
+						.filter(filter).get();
+				}
 			}
 			catch (IOException e) {
 				throw new ImportException(e);
@@ -150,6 +180,35 @@ public class AddressesImporter {
 		catch (Exception e) {
 			throw new ImportException(e);
 		}
+	}
+
+	private String getRegion() {
+		if (options.getRegion() == null) {
+			return null;
+		}
+		
+		return options.getRegion().toLowerCase();
+	}
+
+	private ImportMeta createImportMetaObject() throws InterruptedException, ExecutionException {
+		TermQueryBuilder byReagionQF = QueryBuilders.termQuery("import.region", getRegion());
+		SearchRequestBuilder counters = client.prepareSearch(IndexHolder.ADDRESSES_INDEX)
+			.setQuery(QueryBuilders.matchAllQuery())
+			.addAggregation(
+					AggregationBuilders.filter("region_max", byReagionQF)
+						.subAggregation(AggregationBuilders.max("value").field("import.region_counter")))
+			.addAggregation(AggregationBuilders.max("import_max").field("import.import_counter"));
+		
+		SearchResponse countersResponse = counters.execute().get();
+		
+		JSONObject regionMaxAggregation = new JSONObject(countersResponse.getAggregations().get("region_max").toString());
+		long regionImportCounter = regionMaxAggregation.getJSONObject("region_max").getJSONObject("value").optLong("value", 0);
+
+		JSONObject importMaxAggregation = new JSONObject(countersResponse.getAggregations().get("import_max").toString());
+		long importCounter = importMaxAggregation.getJSONObject("import_max").optLong("value", 0);
+		
+		ImportMeta imp = new ImportMeta(getRegion(), regionImportCounter + 1, importCounter + 1);
+		return imp;
 	}
 
 	private void fileRead() {
@@ -185,6 +244,15 @@ public class AddressesImporter {
 	
 	protected void submitBulk() {
 		if (bulk.numberOfActions() > 0) {
+			
+			if (!batchObjectIds.isEmpty()) {
+				DeleteByQueryAction.INSTANCE.newRequestBuilder(client)
+					.source(IndexHolder.ADDRESSES_INDEX)
+					.filter(QueryBuilders.termsQuery("id", batchObjectIds)).get();
+				
+				batchObjectIds.clear();
+			}
+			
 			BulkResponse response = bulk.get();
 			if(response.hasFailures()) {
 				throw new Error(response.buildFailureMessage());
