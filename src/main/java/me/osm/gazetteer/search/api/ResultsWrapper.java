@@ -34,6 +34,7 @@ public class ResultsWrapper {
 		public Map address;
 		public String name;
 		public Map refs;
+		public Collection<String> poi_class;
 	}
 	
 	public ResultsWrapper() {
@@ -48,7 +49,8 @@ public class ResultsWrapper {
 
 	public void addResultsRow(double rank, double baseScore, 
 			String name, Map addressAsMap, String fullText, String osmId, 
-			GeoPoint geoPoint, String[] matchedQueries, Map refs) {
+			GeoPoint geoPoint, String[] matchedQueries, Map refs, 
+			Collection<String> poiClasses) {
 		
 		SearchResultRow row = new SearchResultRow();
 		
@@ -63,6 +65,7 @@ public class ResultsWrapper {
 		
 		row.address = addressAsMap;
 		row.refs = refs;
+		row.poi_class = poiClasses;
 				
 		rows.add(row);
 	}
