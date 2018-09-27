@@ -78,6 +78,7 @@ public class REServer {
 				log.warn("Can't save pid to file {}", pidFile);
 				e.printStackTrace();
 			}
+			pidFile.deleteOnExit();
 		}
 
 		server.awaitShutdown();
