@@ -184,7 +184,7 @@ public class AddressesImporter {
 
 	private String getRegion() {
 		if (options.getRegion() == null) {
-			return null;
+			return "NULL";
 		}
 		
 		return options.getRegion().toLowerCase();
