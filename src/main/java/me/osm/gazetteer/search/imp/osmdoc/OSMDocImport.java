@@ -27,11 +27,13 @@ public class OSMDocImport {
 	private static BulkRequestBuilder bulk = client.prepareBulk();
 	
 	private static final IndexHolder indexHolder = new POIClassIndexHolder();
-	private static final OSMDocFacade facade = OSMDoc.get("/home/dkiselev/osm/osm-doc/catalog/").getFacade();
+	private final OSMDocFacade facade;
 	
-	public static void main(String[] args) {
-		
-		
+	public OSMDocImport(DocImportOptions options) {
+		facade = OSMDoc.get(options.getPath()).getFacade();
+	}
+	
+	public void run() {
 		if (indexHolder.exists()) {
 			indexHolder.drop();
 		}
@@ -39,7 +41,6 @@ public class OSMDocImport {
 		if (!indexHolder.exists()) {
 			indexHolder.create();
 		}
-		
 		
 		List<JSONObject> features = facade.listTranslatedFeatures(null);
 		
@@ -74,5 +75,9 @@ public class OSMDocImport {
 		} catch (ExecutionException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public static void main(String[] args) {
+		new OSMDocImport(new DocImportOptions(args[0])).run();
 	}
 }

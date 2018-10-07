@@ -8,6 +8,8 @@ import me.osm.gazetteer.search.csv.CSVGeocode;
 import me.osm.gazetteer.search.csv.MassGeocodeOptions;
 import me.osm.gazetteer.search.imp.ImportOptions;
 import me.osm.gazetteer.search.imp.addr.AddressesImporter;
+import me.osm.gazetteer.search.imp.osmdoc.DocImportOptions;
+import me.osm.gazetteer.search.imp.osmdoc.OSMDocImport;
 import me.osm.gazetteer.search.server.REServer;
 
 public class GazetteerSearch {
@@ -15,12 +17,14 @@ public class GazetteerSearch {
 	public static void main(String[] args) {
 		
 		ImportOptions imprt = new ImportOptions();
+		DocImportOptions docImprt = new DocImportOptions();
 		ServerOptions serve = new ServerOptions();
 		MassGeocodeOptions csv = new MassGeocodeOptions();
 		
 		JCommander jc = JCommander.newBuilder()
 				.programName("gazetteer-search")
 				.addCommand("import", imprt)
+				.addCommand("doc-import", docImprt)
 				.addCommand("serve", serve)
 				.addCommand("geocode-csv", csv)
 				.build();
@@ -43,6 +47,9 @@ public class GazetteerSearch {
 		String parsedCommand = jc.getParsedCommand();
 		if ("import".equals(parsedCommand)) {
 			new AddressesImporter(imprt).run();
+		}
+		else if ("doc-import".equals(parsedCommand)) {
+			new OSMDocImport(docImprt).run();
 		}
 		else if ("geocode-csv".equals(parsedCommand)) {
 			new CSVGeocode(csv);

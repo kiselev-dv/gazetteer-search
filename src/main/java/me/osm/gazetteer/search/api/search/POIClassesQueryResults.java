@@ -2,6 +2,8 @@ package me.osm.gazetteer.search.api.search;
 
 import java.util.Collection;
 
+import me.osm.gazetteer.search.backendquery.es.builders.BooleanPart;
+
 public class POIClassesQueryResults {
 	
 	private Collection<String> classes;
@@ -9,9 +11,14 @@ public class POIClassesQueryResults {
 	private Collection<String> matchedTerms;
 	
 	private boolean matchPrefix;
+
+	private BooleanPart poiQuery;
 	
-	public POIClassesQueryResults(Collection<String> classes, Collection<String> matchedTerms, boolean matchPrefix) {
+	public POIClassesQueryResults(Collection<String> classes, 
+			BooleanPart poiQuery, Collection<String> matchedTerms, 
+			boolean matchPrefix) {
 		this.classes = classes;
+		this.poiQuery = poiQuery;
 		this.matchedTerms = matchedTerms;
 		this.matchPrefix = matchPrefix;
 	}
@@ -26,6 +33,10 @@ public class POIClassesQueryResults {
 
 	public boolean isMatchPrefix() {
 		return matchPrefix;
+	}
+
+	public BooleanPart getPoiQuery() {
+		return poiQuery;
 	}
 	
 }
