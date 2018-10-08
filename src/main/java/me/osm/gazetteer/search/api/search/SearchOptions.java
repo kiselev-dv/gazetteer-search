@@ -14,6 +14,7 @@ public class SearchOptions {
 	private boolean verboseAddress;
 	
 	private Collection<String> references = null;
+	private double[] bbox = null;
 	
 	public Double getLon() {
 		return lon;
@@ -69,6 +70,13 @@ public class SearchOptions {
 	}
 	public void setReferences(Collection<String> references) {
 		this.references = references;
+	}
+	
+	public double[] getBbox() {
+		return bbox;
+	}
+	public void setBbox(double[] bbox) {
+		this.bbox = bbox;
 	}
 	
 }

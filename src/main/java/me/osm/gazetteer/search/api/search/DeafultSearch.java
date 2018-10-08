@@ -13,6 +13,9 @@ import me.osm.gazetteer.search.query.Query;
 import me.osm.gazetteer.search.query.QueryAnalyzer;
 import me.osm.gazetteer.search.query.QueryAnalyzerImpl;
 
+/**
+ * @Deprecated see ESDefaultSearch
+ * */
 public class DeafultSearch implements Search {
 	
 	private QueryAnalyzer analyzer = new QueryAnalyzerImpl();
@@ -63,8 +66,8 @@ public class DeafultSearch implements Search {
 		try {
 			List<StandardSearchQueryRow> results = standardSearchQuery.listResults();
 			for (StandardSearchQueryRow row : results) {
-				result.addResultsRow(row.getRank(), 0.0, row.getFullText(), 
-						null, row.getOsmId(),null, null, null, null, null);
+//				result.addResultsRow(row.getRank(), 0.0, row.getFullText(), 
+//						null, row.getOsmId(), row.getOsmId(), null, null, null, null, null);
 			}
 			
 		} catch (Exception e) {

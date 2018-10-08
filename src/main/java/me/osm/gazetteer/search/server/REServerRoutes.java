@@ -9,6 +9,7 @@ import com.google.inject.Inject;
 
 import io.netty.handler.codec.http.HttpMethod;
 import me.osm.gazetteer.search.api.SearchAPI;
+import me.osm.gazetteer.search.api.osmdoc.OSMDocAPI;
 
 public class REServerRoutes {
 
@@ -18,33 +19,45 @@ public class REServerRoutes {
 		private static final int WEEK = 7 * DAY;
 		
 		private final SearchAPI searchAPI;
+		private final OSMDocAPI osmdocAPI;
 		
-		@Inject
-		public REServerRoutes(SearchAPI searchAPI) {
+		public REServerRoutes(SearchAPI searchAPI, OSMDocAPI osmdocAPI) {
 			this.searchAPI = searchAPI;
+			this.osmdocAPI = osmdocAPI;
 		}
 		
 		public void defineRoutes(RestExpress server, String serverWebRoot) {
-			
 
 			LoggerFactory.getLogger(REServerRoutes.class).info("Define routes with web root: {}", serverWebRoot);
 			
 			server.uri(serverWebRoot + "/location/_search", searchAPI)
-			.method(HttpMethod.GET)
-			.name("feature")
-			.flag(Flags.Auth.PUBLIC_ROUTE)
-			.parameter(Parameters.Cache.MAX_AGE, MINUTE);
+				.method(HttpMethod.GET)
+				.name("feature")
+				.flag(Flags.Auth.PUBLIC_ROUTE)
+				.parameter(Parameters.Cache.MAX_AGE, MINUTE);
 			
 			server.uri(serverWebRoot + "/location/_search.{format}", searchAPI)
-			.method(HttpMethod.GET)
-			.name("feature")
-			.flag(Flags.Auth.PUBLIC_ROUTE)
-			.parameter(Parameters.Cache.MAX_AGE, MINUTE);
+				.method(HttpMethod.GET)
+				.name("feature")
+				.flag(Flags.Auth.PUBLIC_ROUTE)
+				.parameter(Parameters.Cache.MAX_AGE, MINUTE);
+			
+			server.uri(serverWebRoot + "/osmdoc/hierarchy/{lang}/{id}", osmdocAPI)
+				.method(HttpMethod.GET)
+				.flag(Flags.Auth.PUBLIC_ROUTE)
+				.parameter("handler", "hierarchy")
+				.parameter(Parameters.Cache.MAX_AGE, DAY);
+
+			server.uri(serverWebRoot + "/osmdoc/poi-class/{lang}/{id}", osmdocAPI)
+				.method(HttpMethod.GET)
+				.flag(Flags.Auth.PUBLIC_ROUTE)
+				.parameter("handler", "poi-class")
+				.parameter(Parameters.Cache.MAX_AGE, DAY);
 			
 			server.uri(serverWebRoot + "/{filename}", new SearchHtml())
-			.alias(serverWebRoot + "/")
-			.flag(Flags.Auth.PUBLIC_ROUTE)
-			.method(HttpMethod.GET).noSerialization();
+				.alias(serverWebRoot + "/")
+				.flag(Flags.Auth.PUBLIC_ROUTE)
+				.method(HttpMethod.GET).noSerialization();
 			
 			
 //			server.uri(root + "/info.{format}",
@@ -93,12 +106,6 @@ public class REServerRoutes {
 //					.flag(Flags.Auth.PUBLIC_ROUTE)
 //					.parameter(Parameters.Cache.MAX_AGE, MINUTE);
 //
-//			server.uri(root + "/osmdoc/hierarchy/{lang}/{id}",
-//					new OSMDocAPI())
-//					.method(HttpMethod.GET)
-//					.flag(Flags.Auth.PUBLIC_ROUTE)
-//					.parameter("handler", "hierarchy")
-//					.parameter(Parameters.Cache.MAX_AGE, DAY);
 //
 //			server.uri(root + "/osmdoc/_import",
 //					new ImportOSMDoc())
@@ -110,14 +117,7 @@ public class REServerRoutes {
 //					.flag(Flags.Auth.PUBLIC_ROUTE)
 //					.defaultFormat("json")
 //					.parameter(Parameters.Cache.MAX_AGE, DAY);
-//
-//			server.uri(root + "/osmdoc/poi-class/{lang}/{id}",
-//					new OSMDocAPI())
-//					.method(HttpMethod.GET)
-//					.flag(Flags.Auth.PUBLIC_ROUTE)
-//					.parameter("handler", "poi-class")
-//					.parameter(Parameters.Cache.MAX_AGE, DAY);
-//
+
 //			server.uri(root + "/health.{format}",
 //					new HealthAPI())
 //					.method(HttpMethod.GET)

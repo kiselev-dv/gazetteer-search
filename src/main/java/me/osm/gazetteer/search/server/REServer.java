@@ -16,6 +16,8 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 
 import me.osm.gazetteer.search.ServerOptions;
+import me.osm.gazetteer.search.api.SearchAPI;
+import me.osm.gazetteer.search.api.osmdoc.OSMDocAPI;
 import me.osm.gazetteer.search.server.postprocessor.AllowOriginPP;
 import me.osm.gazetteer.search.server.postprocessor.LastModifiedHeaderPostprocessor;
 import me.osm.gazetteer.search.server.postprocessor.MarkHeaderPostprocessor;
@@ -58,7 +60,9 @@ public class REServer {
 				.addPostprocessor(new MarkHeaderPostprocessor())
 				.addPreprocessor(new BasikAuthPreprocessor(getRealmName(), getAdminPasswordHash()));
 		
-		REServerRoutes routes = injector.getInstance(REServerRoutes.class);
+		SearchAPI searchAPI = injector.getInstance(SearchAPI.class);
+		OSMDocAPI osmdocAPI = new OSMDocAPI(options.getOsmdocPath());
+		REServerRoutes routes = new REServerRoutes(searchAPI, osmdocAPI);
 		routes.defineRoutes(server, options.getApiRoot());
 		
 		server.addMessageObserver(new HttpLogger());

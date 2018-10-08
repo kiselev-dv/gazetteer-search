@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.restexpress.Request;
 import org.restexpress.Response;
@@ -47,6 +48,9 @@ public class SearchAPIAdapter implements SearchAPI {
 			+ "for instance should be inside one of the given city" )
 	public static final String REFERENCES = "references";
 	
+	@QueryParameter(type="double[4]", description="Search in bounding box only. [lon, lat, lon, lat]" )
+	public static final String BBOX = "bbox";
+	
 	@Inject
 	private Search search;
 
@@ -70,6 +74,8 @@ public class SearchAPIAdapter implements SearchAPI {
 		
 		searchOptions.setReferences(getSet(request, REFERENCES));
 		
+		searchOptions.setBbox(getDoubleArray(request, BBOX));
+		
 		log.info("search {}", query);
 		
 		String mark = request.getHeader("mark");
@@ -81,6 +87,25 @@ public class SearchAPIAdapter implements SearchAPI {
 		}
 		
 		return res;
+	}
+
+	private double[] getDoubleArray(Request request, String param) {
+		try {
+			String val = request.getHeader(param);
+			if (StringUtils.isNoneBlank(val)) {
+				String[] split = StringUtils.split(val, "[],;");
+				double[] result = new double[split.length];
+				for(int i = 0; i < split.length; i++) {
+					result[i] = Double.valueOf(split[i]);
+				}
+				return result;
+			}
+		}
+		catch (NumberFormatException e) {
+			log.warn("Can't parse value as double for {}", param, e);
+		}
+		
+		return null;
 	}
 
 	private Set<String> getSet(Request request, String param) {

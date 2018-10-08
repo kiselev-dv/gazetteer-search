@@ -14,6 +14,9 @@ public class ServerOptions {
 
 	@Parameter(names= {"--api-root", "-r"})
 	private String apiRoot = "";
+	
+	@Parameter(names= {"--osmdoc", "-o"})
+	private String osmdocPath = "jar";
 
 	public int getPort() {
 		return port;
@@ -39,6 +42,12 @@ public class ServerOptions {
 		this.apiRoot = apiRoot;
 	}
 
-	
+	public String getOsmdocPath() {
+		return osmdocPath;
+	}
+
+	public void setOsmdocPath(String osmdocPath) {
+		this.osmdocPath = osmdocPath;
+	}
 	
 }
