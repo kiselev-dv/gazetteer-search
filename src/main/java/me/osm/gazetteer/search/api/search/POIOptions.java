@@ -4,7 +4,7 @@ import java.util.Collection;
 
 import me.osm.gazetteer.search.backendquery.es.builders.BooleanPart;
 
-public class POIClassesQueryResults {
+public class POIOptions {
 	
 	private Collection<String> classes;
 	
@@ -14,7 +14,7 @@ public class POIClassesQueryResults {
 
 	private BooleanPart poiQuery;
 	
-	public POIClassesQueryResults(Collection<String> classes, 
+	public POIOptions(Collection<String> classes, 
 			BooleanPart poiQuery, Collection<String> matchedTerms, 
 			boolean matchPrefix) {
 		this.classes = classes;

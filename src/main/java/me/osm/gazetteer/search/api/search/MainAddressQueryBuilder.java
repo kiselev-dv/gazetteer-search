@@ -112,11 +112,10 @@ public class MainAddressQueryBuilder {
 	public BooleanPart buildQuery(
 			Query query, 
 			ParsedTokens tokens, 
-			POIClassesQueryResults pois, 
+			POIOptions pois, 
 			QueryBuilderFlags flags) {
 		
-		ESQueryPart prefixPart = buildPrefixPart(query, tokens);
-		
+		ESQueryPart prefixPart = buildPrefixPart(query, tokens, true);
 		
 		JSONObject housenumber = buildHousenumberQ(flags.housenumbersRange, tokens.numberTokens);
 		
@@ -128,7 +127,8 @@ public class MainAddressQueryBuilder {
 				tokens.requiredTokens, 
 				tokens.prefixT, 
 				tokens.numberTokens, 
-				flags.fuzzy, flags.streetsWithNumbers, !flags.streetOrLocality);
+				flags.fuzzy, flags.streetsWithNumbers, 
+				!flags.streetOrLocality, pois);
 		
 		mainBooleanPart.addMust(localityAndStreet);
 			
@@ -144,6 +144,7 @@ public class MainAddressQueryBuilder {
 		if (prefixPart != null) {
 			mainBooleanPart.addShould(prefixPart);
 		}
+		
 		
 		TermsPart typeFilter = buildTypeFilter(tokens, pois, flags, housenumber, mainBooleanPart);
 		
@@ -161,8 +162,24 @@ public class MainAddressQueryBuilder {
 		
 		return mainBooleanPart;
 	}
+	
+	private static BooleanPart buildPrefixOverMultipleFields(QToken prefixT, List<String> fields) {
+		
+		BooleanPart result = new BooleanPart();
+		
+		for(String field : fields) {
+			result.addShould(new JSONObject().put("prefix", 
+					new JSONObject().put(field, new JSONObject()
+						.put("value", prefixT.toString())
+						.put("_name", "_prefix:" + field)
+			)));
+			result.setMinimumShouldMatch(1);
+		}
+		
+		return result;
+	}
 
-	private static TermsPart buildTypeFilter(ParsedTokens tokens, POIClassesQueryResults pois, QueryBuilderFlags flags,
+	private static TermsPart buildTypeFilter(ParsedTokens tokens, POIOptions pois, QueryBuilderFlags flags,
 			JSONObject housenumber, BooleanPart mainBooleanPart) {
 		TermsPart typeFilter;
 		if (tokens.requiredTokens.isEmpty()) {
@@ -185,7 +202,7 @@ public class MainAddressQueryBuilder {
 					Arrays.asList("plcpnt", "plcbnd", "hghnet", "adrpnt"));
 		}
 
-		if (pois != null && !pois.getClasses().isEmpty()) {
+		if (pois != null) {
 			if (flags.pois_first) {
 				typeFilter = new TermsPart("type", 
 						Arrays.asList("poipnt"));
@@ -196,11 +213,13 @@ public class MainAddressQueryBuilder {
 
 			TermsPart poiClassTerm = new TermsPart("poi_class", pois.getClasses());
 			
-			if (flags.pois_first) {
+			if (flags.pois_first || pois.getClasses().size() == 1) {
 				mainBooleanPart.addMust(poiClassTerm);
 			}
 			else {
-				mainBooleanPart.addShould(poiClassTerm);
+				mainBooleanPart.addShould(new JSONObject().put("constant_score", new JSONObject()
+						.put("filter", poiClassTerm.getPart())
+						.put("boost", 100000.0) ));
 			}
 		}
 		return typeFilter;
@@ -216,15 +235,27 @@ public class MainAddressQueryBuilder {
 		}
 	}
 
-	private static ESQueryPart buildPrefixPart(Query query, ParsedTokens tokens) {
+	private static ESQueryPart buildPrefixPart(Query query, ParsedTokens tokens, boolean pois) {
 		ESQueryPart prefixPart = null;
 
 		if (tokens.prefixT != null) {
-			if (query.countTokens() == 0) {
-				prefixPart = new Prefix(tokens.prefixT.toString(), "name");
+			if(!pois) {
+				if (query.countTokens() == 0) {
+					prefixPart = new Prefix(tokens.prefixT.toString(), "name");
+				}
+				else {
+					prefixPart = new Prefix(tokens.prefixT.toString(), "full_text");
+				}
 			}
 			else {
-				prefixPart = new Prefix(tokens.prefixT.toString(), "full_text");
+				if (query.countTokens() == 0) {
+					prefixPart = buildPrefixOverMultipleFields(tokens.prefixT, 
+							Arrays.asList("name", "more_tags.brand", "more_tags.operator"));
+				}
+				else {
+					prefixPart = buildPrefixOverMultipleFields(tokens.prefixT, 
+							Arrays.asList("full_text", "more_tags.brand", "more_tags.operator"));
+				}
 			}
 			
 			prefixPart = new CustomScore(prefixPart, prefixScoreScript, prefixScoreScriptParams);
@@ -264,7 +295,7 @@ public class MainAddressQueryBuilder {
 
 	private static JSONObject buildMultyMatchQuery(List<QToken> requiredTokens, QToken prefixT, 
 			List<QToken> numberTokens, boolean fuzzy, boolean addNumberTokensToStreets, 
-			boolean allMustMatch) {
+			boolean allMustMatch, POIOptions pois) {
 		
 		int numOfTokens = requiredTokens.size() + (prefixT == null ? 0 : 1);
 		allMustMatch = allMustMatch && !requiredTokens.isEmpty() && numOfTokens > 1;
@@ -272,15 +303,15 @@ public class MainAddressQueryBuilder {
 		BooleanPart multimatch = new BooleanPart();
 		multimatch.setName("required_terms");
 		
-		Set<String> tokenStrings = new HashSet<>();
+		Set<String> requiredTokenString = new HashSet<>();
 		requiredTokens.stream().forEach(t -> {
-			tokenStrings.add(t.toString());
+			requiredTokenString.add(t.toString());
 			if (t.isFuzzied()) {
-				tokenStrings.addAll(t.getVariants());
+				requiredTokenString.addAll(t.getVariants());
 			}
 		});
 		
-		ESQueryPart streetMatch = new MatchPart("street", tokenStrings);
+		ESQueryPart streetMatch = new MatchPart("street", requiredTokenString);
 		((MatchPart) streetMatch).setName(MATCH_STREET_QUERY_NAME);
 		if (fuzzy) {
 			((MatchPart) streetMatch).setFuzziness("1");
@@ -293,7 +324,7 @@ public class MainAddressQueryBuilder {
 			or.addShould(streetMatch);
 			or.addShould(streetPrefix);
 			
-			if (tokenStrings.isEmpty()) {
+			if (requiredTokenString.isEmpty()) {
 				streetMatch = streetPrefix;
 			}
 			else {
@@ -313,7 +344,7 @@ public class MainAddressQueryBuilder {
 			}
 		}
 		
-		ESQueryPart localityMatch = new MatchPart("locality", tokenStrings);
+		ESQueryPart localityMatch = new MatchPart("locality", requiredTokenString);
 		((MatchPart) localityMatch).setName(MATCH_LOCALITY_QUERY_NAME);
 		if (fuzzy) {
 			((MatchPart) localityMatch).setFuzziness("1");
@@ -326,7 +357,7 @@ public class MainAddressQueryBuilder {
 			or.addShould(localityMatch);
 			or.addShould(localityPrefix);
 			
-			if (tokenStrings.isEmpty()) {
+			if (requiredTokenString.isEmpty()) {
 				localityMatch = localityPrefix;
 			}
 			else {
@@ -340,13 +371,51 @@ public class MainAddressQueryBuilder {
 			multimatch.addShould(localityMatch);
 		}
 		
+		if (pois != null){
+			
+			JSONObject poiTagsMatch = new JSONObject();
+			poiTagsMatch.put("multi_match", new JSONObject()
+					.put("type", "cross_fields")
+					.put("query", StringUtils.join(requiredTokenString, " "))
+					.put("minimum_should_match", requiredTokenString.size())
+					.put("fields", Arrays.asList("name^5", "more_tags.brand", "more_tags.operator"))
+			);
+			
+			if (prefixT != null) {
+				BooleanPart poiPrefix = 
+						buildPrefixOverMultipleFields(prefixT, Arrays.asList("name", "more_tags.brand", "more_tags.operator"));
+				poiPrefix.setName("poi_prefix:" + prefixT.toString());
+				
+				BooleanPart or = new BooleanPart();
+				or.addShould(poiTagsMatch);
+				or.addShould(poiPrefix);
+				
+				if (requiredTokenString.isEmpty()) {
+					if (allMustMatch) {
+						multimatch.addMust(poiPrefix);
+					}
+					else {
+						multimatch.addShould(poiPrefix);
+					}
+				}
+				else {
+					if (allMustMatch) {
+						multimatch.addMust(or);
+					}
+					else {
+						multimatch.addShould(or);
+					}
+				}
+			}
+		}
+		
 		if (prefixT != null) {
-			tokenStrings.add(prefixT.toString());
+			requiredTokenString.add(prefixT.toString());
 		}
 		
 		if (numOfTokens >= 2) {
 			JSONObject crossFields = new JSONObject().put("multi_match", new JSONObject()
-					.put("query", StringUtils.join(tokenStrings, ' '))
+					.put("query", StringUtils.join(requiredTokenString, ' '))
 					.put("fields", Arrays.asList("locality", "street"))
 					.put("type", "cross_fields")
 					.put("_name", "cross_fields")

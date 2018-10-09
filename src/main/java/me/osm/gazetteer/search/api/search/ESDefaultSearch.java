@@ -87,7 +87,7 @@ public class ESDefaultSearch implements Search {
 		});
 		
 		String[] sourceFields = getSourceFields(options);
-		POIClassesQueryResults pois = null;
+		POIOptions pois = null;
 		
 		if (POI_IMPORTED && !options.isNoPoi()) {
 			pois = queryPois(prefixT, allRequiredTokenStrings, sourceFields);
@@ -114,7 +114,7 @@ public class ESDefaultSearch implements Search {
 				prefixT);
 
 		if (pois != null) {
-			coallesceQueries.add(addReferencesFilter(pois.getPoiQuery(), references).getPart());
+//			coallesceQueries.add(addReferencesFilter(pois.getPoiQuery(), references).getPart());
 		}
 		
 		coallesceQueries.add(addReferencesFilter(addrQueryBuilder.buildQuery(
@@ -175,7 +175,7 @@ public class ESDefaultSearch implements Search {
 	}
 
 	private void clearPOITerms(List<QToken> tokens, List<QToken> optionalTokens, List<QToken> requiredTokens,
-			List<String> requiredVariants, List<String> allRequiredTokenStrings, POIClassesQueryResults poiClasses) {
+			List<String> requiredVariants, List<String> allRequiredTokenStrings, POIOptions poiClasses) {
 		requiredTokens.clear();
 		requiredVariants.clear();
 		allRequiredTokenStrings.clear();
@@ -231,7 +231,7 @@ public class ESDefaultSearch implements Search {
 	 */
 	
 	
-	private POIClassesQueryResults queryPois(QToken prefixT, 
+	private POIOptions queryPois(QToken prefixT, 
 			List<String> allRequiredTokenStrings, String[] sourceFields) {
 		
 		Collection<String> poiClasses = new HashSet<>();
@@ -286,7 +286,7 @@ public class ESDefaultSearch implements Search {
 			bool.addFilter(new TermsPart("poi_class", poiClasses));
 		}
 		
-		return new POIClassesQueryResults(poiClasses, bool, termsMatchingTypes, prefixMatchType);
+		return new POIOptions(poiClasses, bool, termsMatchingTypes, prefixMatchType);
 	}
 
 	private JSONObject buildPOIRequiredTerms(List<String> allRequiredTokenStrings) {
