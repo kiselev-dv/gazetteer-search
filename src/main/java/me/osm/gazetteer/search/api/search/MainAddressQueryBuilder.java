@@ -42,6 +42,8 @@ public class MainAddressQueryBuilder {
 	private static double prefixPlcpntBoost = 5.0;
 	private static double prefixRefBoost = 0.005;
 	
+	private static double matchedPOIClassBoost = 100000.0;
+	
 	private static final String prefixScoreScript = 
 			  "params.scale * "
 			+ "doc['base_score'].value / "
@@ -219,7 +221,7 @@ public class MainAddressQueryBuilder {
 			else {
 				mainBooleanPart.addShould(new JSONObject().put("constant_score", new JSONObject()
 						.put("filter", poiClassTerm.getPart())
-						.put("boost", 100000.0) ));
+						.put("boost", matchedPOIClassBoost) ));
 			}
 		}
 		return typeFilter;
