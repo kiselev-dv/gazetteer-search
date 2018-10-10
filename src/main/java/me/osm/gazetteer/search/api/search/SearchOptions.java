@@ -14,6 +14,7 @@ public class SearchOptions {
 	private boolean verboseAddress;
 	
 	private Collection<String> references = null;
+	private Collection<String> poiClasses = null;
 	private double[] bbox = null;
 	
 	public Double getLon() {
@@ -77,6 +78,13 @@ public class SearchOptions {
 	}
 	public void setBbox(double[] bbox) {
 		this.bbox = bbox;
+	}
+	
+	public Collection<String> getPoiClasses() {
+		return poiClasses;
+	}
+	public void setPoiClasses(Collection<String> poiClasses) {
+		this.poiClasses = poiClasses;
 	}
 	
 }

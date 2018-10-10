@@ -48,36 +48,44 @@ public class BooleanPart implements ESQueryPart {
 		return query;
 	}
 	
-	public void addMust(ESQueryPart part) {
+	public BooleanPart addMust(ESQueryPart part) {
 		must.put(part.getPart());
+		return this;
 	}
 	
-	public void addMust(JSONObject part) {
+	public BooleanPart addMust(JSONObject part) {
 		must.put(part);
+		return this;
 	}
 	
-	public void addFilter(ESQueryPart part) {
+	public BooleanPart addFilter(ESQueryPart part) {
 		filter.put(part.getPart());
+		return this;
 	}
 	
-	public void addFilter(JSONObject part) {
+	public BooleanPart addFilter(JSONObject part) {
 		filter.put(part);
+		return this;
 	}
 	
-	public void addMustNot(ESQueryPart part) {
+	public BooleanPart addMustNot(ESQueryPart part) {
 		mustNot.put(part.getPart());
+		return this;
 	}
 	
-	public void addMustNot(JSONObject part) {
+	public BooleanPart addMustNot(JSONObject part) {
 		mustNot.put(part);
+		return this;
 	}
 	
-	public void addShould(ESQueryPart part) {
+	public BooleanPart addShould(ESQueryPart part) {
 		should.put(part.getPart());
+		return this;
 	}
 	
-	public void addShould(JSONObject part) {
+	public BooleanPart addShould(JSONObject part) {
 		should.put(part);
+		return this;
 	}
 
 	public void setName(String name) {

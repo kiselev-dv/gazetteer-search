@@ -19,6 +19,8 @@ import me.osm.gazetteer.search.api.search.SearchOptions;
 
 public class SearchAPIAdapter implements SearchAPI {
 	
+	private static final String POICLASS = "poiclass";
+
 	private static final Logger log = LoggerFactory.getLogger(SearchAPIAdapter.class);
 	
 	private static final int DEFAULT_PAGE_SIZE = 20;
@@ -75,7 +77,9 @@ public class SearchAPIAdapter implements SearchAPI {
 		searchOptions.setReferences(getSet(request, REFERENCES));
 		
 		searchOptions.setBbox(getDoubleArray(request, BBOX));
+		searchOptions.setPoiClasses(getSet(request, POICLASS));
 		
+		// TODO Save more verbose stats
 		log.info("search {}", query);
 		
 		String mark = request.getHeader("mark");

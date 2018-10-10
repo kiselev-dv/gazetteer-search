@@ -114,7 +114,7 @@ public class MainAddressQueryBuilder {
 	public BooleanPart buildQuery(
 			Query query, 
 			ParsedTokens tokens, 
-			POIOptions pois, 
+			POIClasses pois, 
 			QueryBuilderFlags flags) {
 		
 		ESQueryPart prefixPart = buildPrefixPart(query, tokens, true);
@@ -181,7 +181,7 @@ public class MainAddressQueryBuilder {
 		return result;
 	}
 
-	private static TermsPart buildTypeFilter(ParsedTokens tokens, POIOptions pois, QueryBuilderFlags flags,
+	private static TermsPart buildTypeFilter(ParsedTokens tokens, POIClasses pois, QueryBuilderFlags flags,
 			JSONObject housenumber, BooleanPart mainBooleanPart) {
 		TermsPart typeFilter;
 		if (tokens.requiredTokens.isEmpty()) {
@@ -297,7 +297,7 @@ public class MainAddressQueryBuilder {
 
 	private static JSONObject buildMultyMatchQuery(List<QToken> requiredTokens, QToken prefixT, 
 			List<QToken> numberTokens, boolean fuzzy, boolean addNumberTokensToStreets, 
-			boolean allMustMatch, POIOptions pois) {
+			boolean allMustMatch, POIClasses pois) {
 		
 		int numOfTokens = requiredTokens.size() + (prefixT == null ? 0 : 1);
 		allMustMatch = allMustMatch && !requiredTokens.isEmpty() && numOfTokens > 1;

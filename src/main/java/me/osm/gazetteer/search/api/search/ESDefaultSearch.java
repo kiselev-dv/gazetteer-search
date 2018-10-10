@@ -57,7 +57,9 @@ public class ESDefaultSearch implements Search {
 		Query query = analyzer.getQuery(queryString);
 		List<QToken> tokens = query.listToken();
 		
-		if (tokens.isEmpty()) {
+		boolean poiClasses = options.getPoiClasses() != null && !options.getPoiClasses().isEmpty();
+		boolean mainQueryIsEmpty = tokens.isEmpty();
+		if (mainQueryIsEmpty && !poiClasses) {
 			return new ResultsWrapper(queryString, page, pageSize);
 		}
 
@@ -87,13 +89,12 @@ public class ESDefaultSearch implements Search {
 		});
 		
 		String[] sourceFields = getSourceFields(options);
-		POIOptions pois = null;
+		POIClasses pois = null;
 		
-		if (POI_IMPORTED && !options.isNoPoi()) {
-			pois = queryPois(prefixT, allRequiredTokenStrings, sourceFields);
+		if (POI_IMPORTED && !options.isNoPoi() && !mainQueryIsEmpty) {
+			pois = queryPoiClass(prefixT, allRequiredTokenStrings, sourceFields);
 
 			if (pois.isMatchPrefix()) {
-				log.info("Prefix matched with POI class");
 				prefixT = null;
 			}
 			
@@ -104,33 +105,33 @@ public class ESDefaultSearch implements Search {
 
 		List<JSONObject> coallesceQueries = new ArrayList<>();
 		
-		Collection<String> references = options.getReferences();
-		
 		ParsedTokens parsedTokens = new ParsedTokens(
 				numberTokens, 
 				optionalTokens, 
 				requiredTokens, 
 				allRequiredTokenStrings, 
 				prefixT);
-
-		if (pois != null) {
-//			coallesceQueries.add(addReferencesFilter(pois.getPoiQuery(), references).getPart());
+		
+		if (mainQueryIsEmpty) {
+			coallesceQueries.add(addFilters(new BooleanPart().addMust(new JSONObject().put("match_all", new JSONObject())), 
+					options).getPart());
 		}
-		
-		coallesceQueries.add(addReferencesFilter(addrQueryBuilder.buildQuery(
-				query, parsedTokens, pois, 
+		else {
+			coallesceQueries.add(addFilters(addrQueryBuilder.buildQuery(
+					query, parsedTokens, pois, 
 					QueryBuilderFlags.getFlags(QueryBuilderFlags.ONLY_ADDR_POINTS, QueryBuilderFlags.FUZZY)), 
-				references).getPart());
-		
-		coallesceQueries.add(addReferencesFilter(addrQueryBuilder.buildQuery(
-				query, parsedTokens, pois,
+					options).getPart());
+			
+			coallesceQueries.add(addFilters(addrQueryBuilder.buildQuery(
+					query, parsedTokens, pois,
 					QueryBuilderFlags.getFlags(QueryBuilderFlags.STREETS_WITH_NUMBERS, QueryBuilderFlags.FUZZY)), 
-				references).getPart());
-		
-		coallesceQueries.add(addReferencesFilter(addrQueryBuilder.buildQuery(
-				query, parsedTokens, pois,
+					options).getPart());
+			
+			coallesceQueries.add(addFilters(addrQueryBuilder.buildQuery(
+					query, parsedTokens, pois,
 					QueryBuilderFlags.getFlags(QueryBuilderFlags.FUZZY, QueryBuilderFlags.STREET_OR_LOCALITY)), 
-				references).getPart());
+					options).getPart());
+		}
 
 		ESCoalesce coalesce = new ESCoalesce(coallesceQueries, sourceFields);
 		
@@ -175,7 +176,7 @@ public class ESDefaultSearch implements Search {
 	}
 
 	private void clearPOITerms(List<QToken> tokens, List<QToken> optionalTokens, List<QToken> requiredTokens,
-			List<String> requiredVariants, List<String> allRequiredTokenStrings, POIOptions poiClasses) {
+			List<String> requiredVariants, List<String> allRequiredTokenStrings, POIClasses poiClasses) {
 		requiredTokens.clear();
 		requiredVariants.clear();
 		allRequiredTokenStrings.clear();
@@ -198,40 +199,31 @@ public class ESDefaultSearch implements Search {
 		}
 	}
 
-	private BooleanPart addReferencesFilter(BooleanPart q, Collection<String> references) {
-		if (references != null && !references.isEmpty()) {
+	private BooleanPart addFilters(BooleanPart q, SearchOptions options) {
+		if (options.getReferences() != null && !options.getReferences().isEmpty()) {
 			q.addFilter(new JSONObject().put("query_string", 
 					new JSONObject()
 						.put("fields", Arrays.asList("refs*"))
-						.put("query", StringUtils.join(references, "OR"))));
+						.put("query", StringUtils.join(options, "OR"))));
 		}
+		
+		if (options.getBbox() != null && options.getBbox().length == 4) {
+			double[] bbox = options.getBbox();
+			q.addFilter(new JSONObject().put("geo_bounding_box", new JSONObject()
+					.put("centroid", new JSONObject()
+							.put("top_left", Arrays.asList(bbox[0], bbox[3]))
+							.put("bottom_right", Arrays.asList(bbox[2], bbox[1]))
+			)));
+		}
+		
+		if (options.getPoiClasses() != null && !options.getPoiClasses().isEmpty()) {
+			q.addFilter(new TermsPart("poi_class", options.getPoiClasses()));
+		}
+		
 		return q;
 	}
-
 	
-	
-	/*
-	 * For POI we are looking for 
-	 * 
-	 * Екатеринбург автозапчасти
-	 * Екатеринбург Макдональдс
-	 * 
-	 * Макдональдс
-	 * Автозапчасти
-	 * 
-	 * at least one of the following should match (
-	 * 		poi class
-	 * 		(poi name, poi brand, poi operator)
-	 * )
-	 * and optional boost for
-	 * 
-	 * city match
-	 * street match
-	 * 
-	 */
-	
-	
-	private POIOptions queryPois(QToken prefixT, 
+	private POIClasses queryPoiClass(QToken prefixT, 
 			List<String> allRequiredTokenStrings, String[] sourceFields) {
 		
 		Collection<String> poiClasses = new HashSet<>();
@@ -257,62 +249,7 @@ public class ESDefaultSearch implements Search {
 			poiClasses.add(hit.getSourceAsMap().get("name").toString()); 
 		}
 		
-		// ---- poi classes part ^^ 
-		//TODO below is pois query itself
-		//TODO move pois query to coallesce queries generation ---
-		
-		BooleanPart bool = new BooleanPart();
-		bool.setName("matchByTags");
-		bool.addFilter(new TermsPart("type", Arrays.asList("poipnt")));
-		
-		BooleanPart prefixBoolean = null;
-		if (prefixT != null) {
-			prefixBoolean = buildPrefixOverMultipleFields(prefixT, 
-					Arrays.asList("name", "more_tags.brand", "more_tags.operator"));
-		}
-		
-		for (String termForType : termsMatchingTypes) {
-			allRequiredTokenStrings.remove(termForType);
-		}
-		
-		JSONObject requiredTerms = buildPOIRequiredTerms(allRequiredTokenStrings);
-
-		if (prefixBoolean != null && !prefixMatchType) {
-			bool.addMust(prefixBoolean);
-		}
-		bool.addMust(requiredTerms);
-		
-		if (!poiClasses.isEmpty()) {
-			bool.addFilter(new TermsPart("poi_class", poiClasses));
-		}
-		
-		return new POIOptions(poiClasses, bool, termsMatchingTypes, prefixMatchType);
-	}
-
-	private JSONObject buildPOIRequiredTerms(List<String> allRequiredTokenStrings) {
-		JSONObject multiMatch = new JSONObject();
-		multiMatch.put("multi_match", new JSONObject()
-				.put("type", "cross_fields")
-				.put("query", StringUtils.join(allRequiredTokenStrings, " "))
-				.put("minimum_should_match", allRequiredTokenStrings.size())
-				.put("fields", Arrays.asList("name^5", "more_tags.brand", "more_tags.operator", "street", "locality"))
-		);
-		return multiMatch;
-	}
-
-	private BooleanPart buildPrefixOverMultipleFields(QToken prefixT, List<String> fields) {
-		BooleanPart result = new BooleanPart();
-		
-		for(String field : fields) {
-			result.addShould(new JSONObject().put("prefix", 
-					new JSONObject().put(field, new JSONObject()
-						.put("value", prefixT.toString())
-						.put("_name", "_prefix:" + field)
-			)));
-			result.setMinimumShouldMatch(1);
-		}
-		
-		return result;
+		return new POIClasses(poiClasses, termsMatchingTypes, prefixMatchType);
 	}
 
 	private JSONObject getPoiTypeQuery(QToken prefixT, List<String> terms) {
