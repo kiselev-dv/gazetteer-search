@@ -102,6 +102,26 @@ gztrApp.factory('gztrThrottle', ['$timeout', 'throttle_delay', 'throttle_culdown
 	
 }]);
 
+gztrApp.factory('gztrDebugQ', ['$http', 'api_url', 
+	function($http, apiurl, search){
+	
+	var api = {};
+	var url = apiurl + '/sendq.json';
+	
+	api.search = function(text) {
+		
+		return $http({
+		    url: url, 
+		    method: "POST",
+		    data: text
+		});
+		
+	};
+	
+	return api;
+	
+}]);
+
 gztrApp.filter('trim', function() {
 	return function (arr, trim, active) {
 		if (arr && active) {
@@ -114,8 +134,8 @@ gztrApp.filter('trim', function() {
 });
 
 gztrApp.controller('SearchController', 
-		['$scope', 'gztrThrottle', 'gztrSearch', 
-			function($scope, throttle, searchAPI) {
+		['$scope', 'gztrThrottle', 'gztrSearch', 'gztrDebugQ',
+			function($scope, throttle, searchAPI, debugQ) {
 
 	$scope.link4OSMId = function(osmId) {
 		var t = osmId.substring(0, 1);
@@ -142,6 +162,7 @@ gztrApp.controller('SearchController',
 	// query string, binded 
 	self.query = '';
 	self.prefix = true;
+	self.coallesce = true;
 	self.trim = true;
 	self.requestCounter = 0;
 	
@@ -164,6 +185,7 @@ gztrApp.controller('SearchController',
 			var params = {
 				q: query,
 				prefix: self.prefix,
+				coallesce: self.coallesce,
 				mark: self.requestCounter
 			};
 			
@@ -192,8 +214,43 @@ gztrApp.controller('SearchController',
 	self.queryResponse = function(response) {
 		if (!self.result || parseInt(response.data.mark) > parseInt(self.result.mark)) {
 			self.result = response.data;
-			self.result.debug_query_json = JSON.parse(self.result.debug_query);
+			self.debug = null;
+			self.result.debug_query_data = JSON.parse(self.result.debug_query);
 		}
+	};
+
+	$scope.isObject = function(obj) {
+		//console.log(obj);
+		return obj !== null && typeof obj === 'object' && !angular.isArray(obj);
+	};
+
+	$scope.isArray = function(obj) {
+		return angular.isArray(obj);
+	};
+
+	$scope.isPrimitive = function(obj) {
+		return !$scope.isObject(obj) && !$scope.isArray(obj);
+	};
+
+	$scope.isFolded = function(key) {
+		return key == 'script_score';
+	};
+
+	$scope.isQuery = function(key) {
+		return ['bool', 'match', 'multi_match', 'prefix', 'term', 'terms'].indexOf(key) >= 0;
+	};
+	
+	$scope.debugQ = function(key, value) {
+		var q = {};
+		q[key] = value;
+
+		self.debug = {
+			subquery: JSON.parse(angular.toJson(q))
+		};
+		
+		debugQ.search(angular.toJson(q)).then(function(response){
+			self.debug.data = response.data;
+		});
 	};
 	
 }]);

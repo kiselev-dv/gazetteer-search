@@ -122,15 +122,17 @@ public class ESDefaultSearch implements Search {
 					QueryBuilderFlags.getFlags(QueryBuilderFlags.ONLY_ADDR_POINTS, QueryBuilderFlags.FUZZY)), 
 					options).getPart());
 			
-			coallesceQueries.add(addFilters(addrQueryBuilder.buildQuery(
-					query, parsedTokens, pois,
-					QueryBuilderFlags.getFlags(QueryBuilderFlags.STREETS_WITH_NUMBERS, QueryBuilderFlags.FUZZY)), 
-					options).getPart());
-			
-			coallesceQueries.add(addFilters(addrQueryBuilder.buildQuery(
-					query, parsedTokens, pois,
-					QueryBuilderFlags.getFlags(QueryBuilderFlags.FUZZY, QueryBuilderFlags.STREET_OR_LOCALITY)), 
-					options).getPart());
+			if(options.isCoallesce()) {
+				coallesceQueries.add(addFilters(addrQueryBuilder.buildQuery(
+						query, parsedTokens, pois,
+						QueryBuilderFlags.getFlags(QueryBuilderFlags.STREETS_WITH_NUMBERS, QueryBuilderFlags.FUZZY)), 
+						options).getPart());
+				
+				coallesceQueries.add(addFilters(addrQueryBuilder.buildQuery(
+						query, parsedTokens, pois,
+						QueryBuilderFlags.getFlags(QueryBuilderFlags.FUZZY, QueryBuilderFlags.STREET_OR_LOCALITY)), 
+						options).getPart());
+			}
 		}
 
 		ESCoalesce coalesce = new ESCoalesce(coallesceQueries, sourceFields);
@@ -235,7 +237,7 @@ public class ESDefaultSearch implements Search {
 		SearchRequestBuilder poiQueryRequestBuilder = ESServer.getInstance().client()
 				.prepareSearch(IndexHolder.POI_CLASS_INDEX)
 				.setTypes(IndexHolder.POI_CLASS_TYPE)
-				.setFetchSource(new String[] {"name"}, new String[] {"json.address.parts.names"})
+				.setFetchSource(new String[] {"name", "title"}, new String[] {"json.address.parts.names"})
 				.setQuery(QueryBuilders.wrapperQuery(poiTypeQ));
 		
 		SearchResponse searchResponse = poiQueryRequestBuilder.get();
@@ -263,7 +265,8 @@ public class ESDefaultSearch implements Search {
 								.put("_name", term))));
 		}
 		
-		if (prefixT != null) {
+		// Don't match optional prefixes, it's too broad
+		if (prefixT != null && !prefixT.isOptional()) {
 			
 			bool.addShould(new JSONObject()
 					.put("prefix", new JSONObject()

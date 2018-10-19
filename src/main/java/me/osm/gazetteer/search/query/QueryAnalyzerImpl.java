@@ -127,7 +127,10 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 		
 		String original = q;
 		
-		q = IndexAnalyzer.removeDiactrics(q.toLowerCase());
+		q = q.toLowerCase();
+		
+		// It's too aggressive: й => и
+		// q = IndexAnalyzer.removeDiactrics(q);
 		
 		for(String[] r : charReplaces) {
 			q = StringUtils.replace(q, r[0], r[1]);
@@ -154,7 +157,14 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 		
 		for(Replacer r : hnReplacers) {
 			Map<String, Collection<String>> replaceGroups = r.replaceGroups(q);
-			group2variants.putAll(replaceGroups);
+			for (Entry<String, Collection<String>> entry : replaceGroups.entrySet()) {
+				if(group2variants.get(entry.getKey()) != null) {
+					group2variants.get(entry.getKey()).addAll(entry.getValue());
+				}
+				else {
+					group2variants.put(entry.getKey(), entry.getValue());
+				}
+			}
 			hnMatches.addAll(replaceGroups.keySet());
 		}
 		

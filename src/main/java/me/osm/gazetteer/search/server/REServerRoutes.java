@@ -1,15 +1,16 @@
 package me.osm.gazetteer.search.server;
 
+import org.apache.commons.lang3.StringUtils;
 import org.restexpress.Flags;
 import org.restexpress.Parameters;
 import org.restexpress.RestExpress;
 import org.slf4j.LoggerFactory;
 
-import com.google.inject.Inject;
-
 import io.netty.handler.codec.http.HttpMethod;
 import me.osm.gazetteer.search.api.SearchAPI;
+import me.osm.gazetteer.search.api.SendQAPI;
 import me.osm.gazetteer.search.api.osmdoc.OSMDocAPI;
+import me.osm.gazetteer.search.api.osmdoc.TagStatisticsAPI;
 
 public class REServerRoutes {
 
@@ -20,13 +21,19 @@ public class REServerRoutes {
 		
 		private final SearchAPI searchAPI;
 		private final OSMDocAPI osmdocAPI;
+		private final TagStatisticsAPI tagStatsAPI;
 		
-		public REServerRoutes(SearchAPI searchAPI, OSMDocAPI osmdocAPI) {
+		public REServerRoutes(SearchAPI searchAPI, OSMDocAPI osmdocAPI, TagStatisticsAPI tagStatsAPI) {
 			this.searchAPI = searchAPI;
 			this.osmdocAPI = osmdocAPI;
+			this.tagStatsAPI = tagStatsAPI;
 		}
 		
 		public void defineRoutes(RestExpress server, String serverWebRoot) {
+
+			if (!StringUtils.startsWith(serverWebRoot, "/") && StringUtils.isNotEmpty(serverWebRoot)) {
+				serverWebRoot = "/" + serverWebRoot;
+			}
 
 			LoggerFactory.getLogger(REServerRoutes.class).info("Define routes with web root: {}", serverWebRoot);
 			
@@ -42,16 +49,26 @@ public class REServerRoutes {
 				.flag(Flags.Auth.PUBLIC_ROUTE)
 				.parameter(Parameters.Cache.MAX_AGE, MINUTE);
 			
-			server.uri(serverWebRoot + "/osmdoc/hierarchy/{lang}/{id}", osmdocAPI)
+			server.uri(serverWebRoot + "/osmdoc/hierarchy/{lang}/{id}.{format}", osmdocAPI)
 				.method(HttpMethod.GET)
 				.flag(Flags.Auth.PUBLIC_ROUTE)
 				.parameter("handler", "hierarchy")
 				.parameter(Parameters.Cache.MAX_AGE, DAY);
 
-			server.uri(serverWebRoot + "/osmdoc/poi-class/{lang}/{id}", osmdocAPI)
+			server.uri(serverWebRoot + "/osmdoc/poi-class/{lang}/{id}.{format}", osmdocAPI)
 				.method(HttpMethod.GET)
 				.flag(Flags.Auth.PUBLIC_ROUTE)
 				.parameter("handler", "poi-class")
+				.parameter(Parameters.Cache.MAX_AGE, DAY);
+			
+			server.uri(serverWebRoot + "/osmdoc/statistic/tagvalues.{format}", tagStatsAPI)
+				.method(HttpMethod.GET)
+				.flag(Flags.Auth.PUBLIC_ROUTE)
+				.parameter(Parameters.Cache.MAX_AGE, DAY);
+			
+			server.uri(serverWebRoot + "/sendq.{format}", new SendQAPI())
+				.method(HttpMethod.POST)
+				.flag(Flags.Auth.PUBLIC_ROUTE)
 				.parameter(Parameters.Cache.MAX_AGE, DAY);
 			
 			server.uri(serverWebRoot + "/{filename}", new SearchHtml())
@@ -111,13 +128,6 @@ public class REServerRoutes {
 //					new ImportOSMDoc())
 //					.method(HttpMethod.GET);
 //
-//			server.uri(root + "/osmdoc/statistic/tagvalues.{format}",
-//					new StatisticAPI())
-//					.method(HttpMethod.GET)
-//					.flag(Flags.Auth.PUBLIC_ROUTE)
-//					.defaultFormat("json")
-//					.parameter(Parameters.Cache.MAX_AGE, DAY);
-
 //			server.uri(root + "/health.{format}",
 //					new HealthAPI())
 //					.method(HttpMethod.GET)

@@ -10,6 +10,7 @@ public class SearchOptions {
 	private boolean noPoi = false;
 	
 	private boolean fuzzy = true;
+	private boolean coallesce = true;
 	private boolean rangeHouseNumbers = true;
 	private boolean verboseAddress;
 	
@@ -85,6 +86,13 @@ public class SearchOptions {
 	}
 	public void setPoiClasses(Collection<String> poiClasses) {
 		this.poiClasses = poiClasses;
+	}
+	
+	public boolean isCoallesce() {
+		return coallesce;
+	}
+	public void setCoallesce(boolean coallesce) {
+		this.coallesce = coallesce;
 	}
 	
 }

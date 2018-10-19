@@ -18,9 +18,12 @@ import com.google.inject.Injector;
 import me.osm.gazetteer.search.ServerOptions;
 import me.osm.gazetteer.search.api.SearchAPI;
 import me.osm.gazetteer.search.api.osmdoc.OSMDocAPI;
+import me.osm.gazetteer.search.api.osmdoc.TagStatisticsAPI;
+import me.osm.gazetteer.search.imp.osmdoc.OSMDoc;
 import me.osm.gazetteer.search.server.postprocessor.AllowOriginPP;
 import me.osm.gazetteer.search.server.postprocessor.LastModifiedHeaderPostprocessor;
 import me.osm.gazetteer.search.server.postprocessor.MarkHeaderPostprocessor;
+import me.osm.osmdoc.read.OSMDocFacade;
 
 public class REServer {
 	
@@ -61,8 +64,12 @@ public class REServer {
 				.addPreprocessor(new BasikAuthPreprocessor(getRealmName(), getAdminPasswordHash()));
 		
 		SearchAPI searchAPI = injector.getInstance(SearchAPI.class);
-		OSMDocAPI osmdocAPI = new OSMDocAPI(options.getOsmdocPath());
-		REServerRoutes routes = new REServerRoutes(searchAPI, osmdocAPI);
+		
+		OSMDocFacade osmdocFacade = OSMDoc.get(options.getOsmdocPath()).getFacade();
+		OSMDocAPI osmdocAPI = new OSMDocAPI(osmdocFacade);
+		TagStatisticsAPI tagStats = new TagStatisticsAPI(osmdocFacade);
+		
+		REServerRoutes routes = new REServerRoutes(searchAPI, osmdocAPI, tagStats);
 		routes.defineRoutes(server, options.getApiRoot());
 		
 		server.addMessageObserver(new HttpLogger());

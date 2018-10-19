@@ -204,7 +204,7 @@ public class MainAddressQueryBuilder {
 					Arrays.asList("plcpnt", "plcbnd", "hghnet", "adrpnt"));
 		}
 
-		if (pois != null) {
+		if (pois != null && !flags.onlyAddrPoints) {
 			if (flags.pois_first) {
 				typeFilter = new TermsPart("type", 
 						Arrays.asList("poipnt"));
@@ -215,7 +215,7 @@ public class MainAddressQueryBuilder {
 
 			TermsPart poiClassTerm = new TermsPart("poi_class", pois.getClasses());
 			
-			if (flags.pois_first || pois.getClasses().size() == 1) {
+			if (flags.pois_first) {
 				mainBooleanPart.addMust(poiClassTerm);
 			}
 			else {
@@ -250,14 +250,13 @@ public class MainAddressQueryBuilder {
 				}
 			}
 			else {
-				if (query.countTokens() == 0) {
-					prefixPart = buildPrefixOverMultipleFields(tokens.prefixT, 
-							Arrays.asList("name", "more_tags.brand", "more_tags.operator"));
-				}
-				else {
-					prefixPart = buildPrefixOverMultipleFields(tokens.prefixT, 
-							Arrays.asList("full_text", "more_tags.brand", "more_tags.operator"));
-				}
+				prefixPart = buildPrefixOverMultipleFields(tokens.prefixT, 
+						Arrays.asList("name", "full_text", "more_tags.brand", "more_tags.operator"));
+				
+				((BooleanPart)prefixPart).addShould(new JSONObject()
+						.put("match", new JSONObject().put("name", new JSONObject()
+								.put("query", tokens.prefixT.toString())
+								.put("fuzziness", "1"))));
 			}
 			
 			prefixPart = new CustomScore(prefixPart, prefixScoreScript, prefixScoreScriptParams);
@@ -392,6 +391,14 @@ public class MainAddressQueryBuilder {
 				or.addShould(poiTagsMatch);
 				or.addShould(poiPrefix);
 				
+				// If prefix is actually full
+				or.addShould(new JSONObject().put("match", new JSONObject()
+						.put("name", new JSONObject()
+								.put("query", prefixT.toString())
+								.put("fuzziness", 1) 
+							)) 
+						);
+				
 				if (requiredTokenString.isEmpty()) {
 					if (allMustMatch) {
 						multimatch.addMust(poiPrefix);
@@ -418,11 +425,12 @@ public class MainAddressQueryBuilder {
 		if (numOfTokens >= 2) {
 			JSONObject crossFields = new JSONObject().put("multi_match", new JSONObject()
 					.put("query", StringUtils.join(requiredTokenString, ' '))
-					.put("fields", Arrays.asList("locality", "street"))
+					.put("fields", Arrays.asList("locality", "street", "name"))
 					.put("type", "cross_fields")
 					.put("_name", "cross_fields")
 					.put("boost", 1000.0));
 			multimatch.addShould(crossFields);
+			multimatch.setMinimumShouldMatch(0);
 		}
 		
 

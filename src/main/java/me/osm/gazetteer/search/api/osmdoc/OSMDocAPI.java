@@ -7,15 +7,14 @@ import org.json.JSONObject;
 import org.restexpress.Request;
 import org.restexpress.Response;
 
-import me.osm.gazetteer.search.imp.osmdoc.OSMDoc;
 import me.osm.osmdoc.read.OSMDocFacade;
 
 public class OSMDocAPI {
 	
 	private final OSMDocFacade facade;
 	
-	public OSMDocAPI(String osmDocPath) {
-		facade = OSMDoc.get(osmDocPath).getFacade();
+	public OSMDocAPI(OSMDocFacade facade) {
+		this.facade = facade;
 	}
 	
 	public Object read(Request request, Response response) {

@@ -22,8 +22,8 @@ import me.osm.gazetteer.search.esclient.IndexHolder;
 import me.osm.gazetteer.search.imp.PagedScroll;
 import me.osm.gazetteer.search.imp.osmdoc.OSMDoc;
 import me.osm.osmdoc.localization.L10n;
-import me.osm.osmdoc.model.Feature;
-import me.osm.osmdoc.model.Tag.Val;
+import me.osm.osmdoc.model.v2.Feature;
+import me.osm.osmdoc.model.v2.Tag.Val;
 import me.osm.osmdoc.read.tagvalueparsers.LogTagsStatisticCollector;
 
 public class UpdatePOITagsAndClasses {
@@ -90,7 +90,7 @@ public class UpdatePOITagsAndClasses {
 		List<Feature> poiClassess = listPoiClassesOSMDoc(jsonObject);
 		Map<String, List<Val>> moreTagsVals = new HashMap<String, List<Val>>();
 		JSONObject moreTags = osmDoc.getFacade().parseMoreTags(poiClassess, getTagsJSON(jsonObject), 
-				new LogTagsStatisticCollector(), moreTagsVals);
+				new LogTagsStatisticCollector(), moreTagsVals, true);
 		
 		inf.setMoreTags(moreTags);
 		

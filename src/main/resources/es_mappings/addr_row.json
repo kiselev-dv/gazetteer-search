@@ -11,15 +11,7 @@
 			},
 			{
 				"more_tags.fee": {
-					"path_match": "more_tags.fee",
-					"mapping": {
-						"type": "keyword"
-					}
-				}
-			},
-			{
-				"more_tags.date": {
-					"path_match": "more_tags.date",
+					"path_match": "more_tags.*",
 					"mapping": {
 						"type": "keyword"
 					}
@@ -51,7 +43,12 @@
 			},
 		
 			"name": {
-				"type": "text"
+				"type": "text",
+				"fields": {
+					"exact": {
+						"type": "keyword"
+					}
+				}
 			},
 			"ref": {
 				"type": "keyword"

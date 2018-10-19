@@ -2,7 +2,12 @@
 <html ng-app="gztr">
   <head>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.9/angular.js"></script>
-    <script src="search.js"></script>
+		<script src="search.js"></script>
+		<style>
+			.hilighted {
+				background-color: #999;
+			}
+		</style>
   </head>
   <body>
     <div ng-controller="SearchController as search">
@@ -11,7 +16,8 @@
       <div>{{search.result.parsed_query}}</div>
       <div ng-if="search.result.matched_poi_classes">{{search.result.matched_poi_classes}}</div>
       <label>Prefix<label><input type="checkbox" ng-model="search.prefix"></input>
-      <label>Trim<label><input type="checkbox" ng-model="search.trim"></input>
+			<label>Trim<label><input type="checkbox" ng-model="search.trim"></input>
+			<label>Coallesce<label><input type="checkbox" ng-model="search.coallesce"></input>
       <label>Lat/Lon<label><input ng-model="search.latlon"></input><button ng-click="geolocate()">locate</button>
       <hr>
       <div style="margin-top: 10px;" ng-repeat="row in search.result.rows | trim: search.result.trim : search.trim">
@@ -36,8 +42,41 @@
       	Query time {{search.result.query_time}}ms</div>
       <div style="font-size: 10px;" ng-show="search.result">
       	<div ng-click="queryVisibility = !queryVisibility" ng-bind="queryVisibility ? 'Hide query' : 'Show query'"></div>
-      	<pre ng-show="queryVisibility">{{search.result.debug_query_json | json}}</pre>
+      	<div ng-show="queryVisibility" style="display:flex;">
+					<div ng-repeat="obj in [search.result.debug_query_data]" style="flex: 0 1;">
+						<div ng-include="'subquery.html'"></div>
+					</div>
+					<div style="flex: 1 1;">
+						<pre>{{search.debug.subquery | json}}</pre>
+						<div ng-repeat="hit in search.debug.data.hits">
+							{{hit}}
+						</div>
+					</div>
+      		<!-- <pre>{{search.result.debug_query_data | json}}</pre> -->
+      	</div>
       </div>
-    </div>
+		</div>
+		
+		<script type="text/ng-template"  id="subquery.html">
+			<div ng-if="isObject(obj)" style="padding-left: 10px;">
+				<div ng-repeat="(k, v) in obj" ng-init="folded = isFolded(k);">
+					<span ng-bind="k" style="font-weight: bold;" ></span>
+					
+					<button ng-if="isQuery(k)" ng-click="debugQ(k,v)">debug</button> 
+					
+					<span ng-bind="v" ng-if="isPrimitive(v)"></span>
+					<a ng-show="isFolded(k)" ng-click="folded = !folded">{{folded ? 'show' : 'hide'}}</a>
+					<div ng-hide="folded" ng-repeat="obj in [v]" ng-include="'subquery.html'"></div>
+				</div>
+			</div>
+
+			<div ng-if="isArray(obj)">
+				<div ng-repeat="obj in obj">
+					<span ng-if="isPrimitive(obj)" ng-bind="obj" style="padding-left: 10px;"></span>
+					<div ng-if="!isPrimitive(obj)" ng-include="'subquery.html'" style="padding-left: 10px;"></div>
+			  </div>
+			</div>
+
+		</script>
   </body>
 </html>

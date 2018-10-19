@@ -18,7 +18,7 @@ import me.osm.gazetteer.search.esclient.ESServer;
 import me.osm.gazetteer.search.esclient.IndexHolder;
 import me.osm.gazetteer.search.esclient.POIClassIndexHolder;
 import me.osm.osmdoc.localization.L10n;
-import me.osm.osmdoc.model.Feature;
+import me.osm.osmdoc.model.v2.Feature;
 import me.osm.osmdoc.read.OSMDocFacade;
 
 public class OSMDocImport {
