@@ -124,7 +124,7 @@ gztrApp.factory('gztrDebugQ', ['$http', 'api_url',
 
 gztrApp.filter('trim', function() {
 	return function (arr, trim, active) {
-		if (arr && active) {
+		if (arr && active && trim > 0) {
 			return arr.filter(function(item, index){
 				return index < trim;
 			});
