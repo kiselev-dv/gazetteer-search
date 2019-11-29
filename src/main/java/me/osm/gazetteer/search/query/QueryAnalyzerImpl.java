@@ -267,7 +267,7 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 		String synonim = synonims.get(t);
 		result.add(synonim);
 		
-		while(t.equals(synonims.get(synonim)) && result.size() < 5) {
+		while(t.equals(synonims.get(synonim)) && result.size() < 10) {
 			synonim = synonims.get(synonim);
 			
 			// We shouldn't have cycles, but just in case we have

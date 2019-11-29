@@ -1,7 +1,7 @@
 # coding: utf-8
 
-# Postcodes are optional
-~[ABCEGHJKLMNPRSTVXY][\d][ABCEGHJKLMNPRSTVXYWZ][ ]?[\d][ABCEGHJKLMNPRSTVXYWZ][\d]
+# Canadian postcodes are optional
+~[ABCEGHJKLMNPRSTVXY][\d][ABCEGHJKLMNPRSTVXYWZ][ ]?[\d][ABCEGHJKLMNPRSTVXYWZ0][\d]
 
 access
 alley
