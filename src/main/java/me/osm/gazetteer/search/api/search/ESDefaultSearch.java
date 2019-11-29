@@ -172,7 +172,10 @@ public class ESDefaultSearch implements Search {
 	private String[] getSourceFields(SearchOptions options) {
 		String[] sourceFields = SOURCE_FIELDS_BASE;
 		if (options.isVerboseAddress()) {
-			sourceFields = ArrayUtils.add(SOURCE_FIELDS_BASE, "json.address");
+			sourceFields = ArrayUtils.add(sourceFields, "json.address");
+		}
+		if (options.isFullGeometry()) {
+			sourceFields = ArrayUtils.add(sourceFields, "json.full_geometry");
 		}
 		return sourceFields;
 	}
@@ -327,9 +330,11 @@ public class ESDefaultSearch implements Search {
 		Map<?,?> centoidfield = (Map<?, ?>) sourceAsMap.get("centroid");
 		
 		Map<String, ?> jsonAsMap = (Map<String, ?>)sourceAsMap.get("json");
+		
 		Collection<String> poiClasses = (Collection<String>) sourceAsMap.get("poi_class");
 		Map addressAsMap = (Map) jsonAsMap.get("address");
 		String name = (String) jsonAsMap.get("name");
+		Map geometry = (Map) jsonAsMap.get("full_geometry");
 		
 		results.addResultsRow(
 				hit.getScore(),
@@ -342,7 +347,8 @@ public class ESDefaultSearch implements Search {
 				new GeoPoint(asDouble(centoidfield.get("lat")), asDouble(centoidfield.get("lon"))),
 				hit.getMatchedQueries(),
 				(Map)sourceAsMap.get("refs"),
-				poiClasses);
+				poiClasses,
+				geometry);
 	}
 	
 	private static double asDouble(Object v) {

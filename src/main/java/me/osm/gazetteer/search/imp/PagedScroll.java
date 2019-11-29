@@ -56,7 +56,7 @@ public class PagedScroll {
 		return client.prepareSearch(IndexHolder.ADDRESSES_INDEX)
 			.setTypes(IndexHolder.ADDR_ROW_TYPE)
 			.setFetchSource(fetchSource, new String[] {})
-			.addSort(SortBuilders.fieldSort("_id"))
+			.addSort(SortBuilders.fieldSort("id"))
 			.setQuery(QueryBuilders.wrapperQuery(query.toString()));
 	}
 

@@ -71,8 +71,7 @@ public class REServerRoutes {
 				.flag(Flags.Auth.PUBLIC_ROUTE)
 				.parameter(Parameters.Cache.MAX_AGE, DAY);
 			
-			server.uri(serverWebRoot + "/{filename}", new SearchHtml())
-				.alias(serverWebRoot + "/")
+			server.regex(serverWebRoot + ".*", new SearchHtml())
 				.flag(Flags.Auth.PUBLIC_ROUTE)
 				.method(HttpMethod.GET).noSerialization();
 			

@@ -13,6 +13,7 @@ public class SearchOptions {
 	private boolean coallesce = true;
 	private boolean rangeHouseNumbers = true;
 	private boolean verboseAddress;
+	private boolean fullGeometry;
 	
 	private Collection<String> references = null;
 	private Collection<String> poiClasses = null;
@@ -95,4 +96,11 @@ public class SearchOptions {
 		this.coallesce = coallesce;
 	}
 	
+	public boolean isFullGeometry() {
+		return fullGeometry;
+	}
+	public void setFullGeometry(boolean fullGeometry) {
+		this.fullGeometry = fullGeometry;
+	}
+
 }

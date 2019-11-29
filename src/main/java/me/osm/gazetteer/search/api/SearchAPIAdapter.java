@@ -41,6 +41,9 @@ public class SearchAPIAdapter implements SearchAPI {
 	@QueryParameter(type="boolean", description="Return verbose address data" )
 	public static final String VERBOSE_ADDRESS = "verbose_address";
 	
+	@QueryParameter(type="boolean", description="Return full geometry for found objects" )
+	public static final String FULL_GEOMETRY = "full_geometry";
+	
 	@QueryParameter(type="boolean", description="Do not search for POI, default is false" )
 	public static final String NO_POI = "no_poi";
 	
@@ -74,6 +77,7 @@ public class SearchAPIAdapter implements SearchAPI {
 		searchOptions.setLat(getLat(request));
 		
 		searchOptions.setVerboseAddress(getBoolean(request, VERBOSE_ADDRESS, false));
+		searchOptions.setFullGeometry(getBoolean(request, VERBOSE_ADDRESS, false));
 		searchOptions.setNoPoi(getBoolean(request, NO_POI, false));
 		
 		searchOptions.setCoallesce(getBoolean(request, COALLESCE_PARAM, true));

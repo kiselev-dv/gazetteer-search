@@ -16,6 +16,8 @@ import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import me.osm.gazetteer.search.backendquery.es.builders.BooleanPart;
 import me.osm.gazetteer.search.esclient.ESServer;
@@ -24,6 +26,8 @@ import me.osm.gazetteer.search.imp.PagedScroll;
 import me.osm.gazetteer.search.util.TimePeriodFormatter;
 
 public class UpdateStreetsUsage {
+	private static final Logger log = LoggerFactory.getLogger(UpdateStreetsUsage.class);
+	
 	private static final int pageSize = 1000;
 	
 	private TransportClient client = ESServer.getInstance().client();
@@ -44,6 +48,8 @@ public class UpdateStreetsUsage {
 		
 		long start = new Date().getTime();
 		counter = 0;
+		
+		log.info("Update number of streets references for {}", region);
 		
 		PagedScroll pageScroll = new PagedScroll(pageSize, "hghnet", 
 				new String[] {"id", "refs", "locality", "street"});
@@ -108,7 +114,7 @@ public class UpdateStreetsUsage {
 			double perLine = time / (double)counter;
 			long eta = new Double((totalHighways - counter) * perLine).longValue();
 			
-			System.out.println(String.format("Lines %d, %.3f ms per line, ETA %s", counter, perLine, TimePeriodFormatter.printDuration(eta)));
+			log.info(String.format("Lines %d, %.3f ms per line, ETA %s", counter, perLine, TimePeriodFormatter.printDuration(eta)));
 		});
 		
 	}
