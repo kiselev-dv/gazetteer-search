@@ -7,6 +7,7 @@ import static org.apache.commons.lang3.StringUtils.substringAfter;
 import static org.apache.commons.lang3.StringUtils.substringBefore;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
@@ -36,14 +37,37 @@ public class ReplacersCompiler {
 		}
 	}
 	
+	/**
+	 * Read replacers from file, following `@include` directives
+	 * and compile them.
+	 * */
 	public static void compile(List<Replacer> replacers, File src) {
 		try {
-			List<String> configContent = FileUtils.readLines(src);
+			List<String> configContent = FileUtils.readLines(src, getEncoding(src));
 			compile(replacers, configContent);
 		}
 		catch (Exception e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	/**
+	 * Search for comment string with encoding:
+	 * `# coding: utf-8`
+	 * */
+	public static String getEncoding(File src) {
+		try {
+			List<String> lines = FileUtils.readLines(src);
+			for(String line: lines) {
+				if (line.startsWith("#") && line.contains("coding")) {
+					return StringUtils.substringAfter(line, "coding").replace(":", "").trim();
+				}
+			}
+		} catch (IOException e) {
+			return null;
+		}
+		
+		return null;
 	}
 
 	private static class State {

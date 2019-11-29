@@ -1,3 +1,5 @@
+# coding: utf-8
+#
 # This replacers will be used to parse housenumbers while data indexing.
 #
 # Each line contains one replacer.

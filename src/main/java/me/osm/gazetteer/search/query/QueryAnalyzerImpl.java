@@ -3,12 +3,13 @@ package me.osm.gazetteer.search.query;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -17,11 +18,11 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -49,7 +50,7 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 	private static final Pattern groupPattern = Pattern.compile("GROUP[0-9]+");
 	
 	// Terms synonims (for street names mainly)
-	public static final Map<String, Set<String>> synonims = new HashMap<>();
+	public static final Map<String, String> synonims = new HashMap<>();
 
 	// Regexp synonims expansions for streets
 	public static final List<Replacer> streetReplacers = new ArrayList<>();
@@ -74,33 +75,6 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 					charReplaces.add(new String[] {key, charReplacesJson.getString(key)});
 				}
 			}
-			
-			JSONObject synonimsJson = cfg.optJSONObject("synonims");
-			if (synonimsJson != null) {
-				for(String key : synonimsJson.keySet()) {
-					
-					Set <String> synonimValues = new HashSet<>();
-					
-					synonimValues.add(key.toLowerCase());
-
-					Object val = synonimsJson.get(key);
-					
-					if (val instanceof String) {
-						synonimValues.add(((String) val).toLowerCase());
-					}
-					
-					if (val instanceof JSONArray) {
-						JSONArray valArr = (JSONArray) val;
-						for (int i = 0; i < valArr.length(); i++) {
-							String valS = valArr.getString(i);
-							synonimValues.add(((String) valS).toLowerCase());
-						}
-					}
-					
-					synonims.put(key.toLowerCase(), synonimValues);
-				}
-			}
-			
 		}
 		catch (JSONException e) {
 			throw new RuntimeException("Can't parse config/QueryAnalizer.json cfg", e);
@@ -113,6 +87,7 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 		
 		readOptionals();
 		readStopWords();
+		readSynonims();
 
 		ReplacersCompiler.compile(streetReplacers, new File("config/replacers/search/requiredSearchReplacers"));
 		ReplacersCompiler.compile(hnReplacers, new File("config/replacers/search/hnSearchReplacers"));
@@ -222,16 +197,20 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 			
 			if (synonims.get(t) != null) {
 				matchedStreet = true;
-				variants.addAll(synonims.get(t));
+				variants.addAll(findSynonims(t));
 			}
 			
 			String withoutNumbers = StringUtils.replaceChars(t, "0123456789", "");
 			
 			boolean hasNumbers = withoutNumbers.length() != t.length();
 			boolean numbersOnly = StringUtils.isBlank(withoutNumbers);
+			// TODO: make these parameters optional
 			boolean optional = optionals.contains(StringUtils.lowerCase(t)) 
 					|| (!hasNumbers && withoutNumbers.length() < 3)
 					|| matchedOptTokens.contains(t);
+			
+			// Any of synonyms or replacements is optional 
+			optional = optional || variants.stream().anyMatch(v -> optionals.contains(StringUtils.lowerCase(v)));
 			
 			result.add(new QToken(t, variants, hasNumbers, numbersOnly, optional, matchedHN, matchedStreet));
 		}
@@ -243,6 +222,63 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 		return query;
 	}
 	
+	private static void readSynonims() {
+		File synonimsd = new File("config/synonims");
+		List<File> synonimFiles = Arrays.stream(synonimsd.listFiles())
+			.filter(f -> f.getName().endsWith(".syn"))
+			.collect(Collectors.toList());
+		
+		for(File f : synonimFiles) {
+			String encoding = ReplacersCompiler.getEncoding(f);
+			try {
+				for(String line : (List<String>)FileUtils.readLines(f, encoding)) {
+					if (!line.startsWith("#") && StringUtils.isNotBlank(line)) {
+						
+						List<String> synonim = Arrays.stream(StringUtils.split(line, "="))
+								.map(s -> s.trim().toLowerCase())
+								.filter(s -> StringUtils.isNotBlank(s))
+								.collect(Collectors.toList());
+						
+						if (synonim.size() >= 2) {
+							Iterator<String> i = synonim.iterator();
+							String synA = i.next();
+							String synB = i.next();
+							
+							synonims.put(synA, synB);
+							while(i.hasNext()) {
+								synA = synB;
+								synB = i.next();
+								synonims.put(synA, synB);
+							}
+							synonims.put(synB, synonim.get(0));
+						}
+					}
+				}
+			}
+			catch (Exception e) {
+				throw new Error("Error reading synonims file " + f, e);
+			}
+		}
+	}
+
+	private Set<String> findSynonims(String t) {
+		Set<String> result = new HashSet<String>(1);
+		
+		String synonim = synonims.get(t);
+		result.add(synonim);
+		
+		while(t.equals(synonims.get(synonim)) && result.size() < 5) {
+			synonim = synonims.get(synonim);
+			
+			// We shouldn't have cycles, but just in case we have
+			if(!result.add(synonim)) {
+				break;
+			}
+		}
+		
+		return result;
+	}
+
 	private static void readStopWords() {
 		Set<String> patterns = new HashSet<>();
 		File dir = new File("config/stop-terms/");
@@ -289,11 +325,15 @@ public class QueryAnalyzerImpl implements QueryAnalyzer {
 		try {
 			LinkedHashSet<String> lines = new LinkedHashSet<>();
 			for (File f : dir.listFiles((d, name) -> name.endsWith(".terms"))) {
-				for(String option : (List<String>)FileUtils.readLines(f)) {
-					if(!StringUtils.startsWith(option, "#") && !StringUtils.isEmpty(option)) {
+				String encoding = ReplacersCompiler.getEncoding(f);
+				int rules = 0;
+				for(String option : (List<String>)FileUtils.readLines(f, encoding)) {
+					if(!StringUtils.startsWith(option, "#") && StringUtils.isNotBlank(option)) {
 						lines.add(option);
+						rules++;
 					}
 				}
+				log.info("Read {} optional terms from {}, (encoding: {})", rules, f, encoding);
 			}
 			return lines;
 		}
