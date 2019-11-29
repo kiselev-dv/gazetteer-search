@@ -1,3 +1,4 @@
+# coding: utf-8
 # Remove parts of the query 
 
 # Remove block number, floor, suit and such garbage
