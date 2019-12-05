@@ -140,12 +140,12 @@ public class MainAddressQueryBuilder {
 				mainBooleanPart.addMust(housenumber);
 			}
 			else {
-//				mainBooleanPart.addShould(housenumber);
+				mainBooleanPart.addShould(housenumber);
 			}
 		}
 		
 		if (prefixPart != null) {
-//			mainBooleanPart.addShould(prefixPart);
+			mainBooleanPart.addShould(prefixPart);
 		}
 		
 		
@@ -156,13 +156,13 @@ public class MainAddressQueryBuilder {
 		addOptionalTerms(tokens, mainBooleanPart);
 		
 		// Just for sorting
-//		MatchPart fullTextMatch = buildFullTextMatch(tokens.allRequired, tokens.prefixT, tokens.numberTokens, flags.fuzzy);
-//		mainBooleanPart.addShould(fullTextMatch.setBoost(1.2));
-//		
-//		mainBooleanPart.addShould(new MatchPart("admin0", tokens.allRequired).setName("admin0").setBoost(1.2));
-//		mainBooleanPart.addShould(new MatchPart("admin1", tokens.allRequired).setName("admin1"));
-//		mainBooleanPart.addShould(new MatchPart("admin2", tokens.allRequired).setName("admin2"));
-//		mainBooleanPart.addShould(new MatchPart("local_admin", tokens.allRequired).setName("local_admin"));
+		MatchPart fullTextMatch = buildFullTextMatch(tokens.allRequired, tokens.prefixT, tokens.numberTokens, flags.fuzzy);
+		mainBooleanPart.addShould(fullTextMatch.setBoost(1.2));
+		
+		mainBooleanPart.addShould(new MatchPart("admin0", tokens.allRequired).setName("admin0").setBoost(1.2));
+		mainBooleanPart.addShould(new MatchPart("admin1", tokens.allRequired).setName("admin1"));
+		mainBooleanPart.addShould(new MatchPart("admin2", tokens.allRequired).setName("admin2"));
+		mainBooleanPart.addShould(new MatchPart("local_admin", tokens.allRequired).setName("local_admin"));
 		
 		return mainBooleanPart;
 	}
