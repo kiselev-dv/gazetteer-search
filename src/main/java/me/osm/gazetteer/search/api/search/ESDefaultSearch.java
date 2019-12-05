@@ -20,15 +20,11 @@ import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.json.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import me.osm.gazetteer.search.api.ResultsWrapper;
 import me.osm.gazetteer.search.api.search.MainAddressQueryBuilder.ParsedTokens;
 import me.osm.gazetteer.search.api.search.MainAddressQueryBuilder.QueryBuilderFlags;
 import me.osm.gazetteer.search.backendquery.es.builders.BooleanPart;
-import me.osm.gazetteer.search.backendquery.es.builders.ESQueryPart;
-import me.osm.gazetteer.search.backendquery.es.builders.MatchPart;
 import me.osm.gazetteer.search.backendquery.es.builders.TermsPart;
 import me.osm.gazetteer.search.esclient.ESServer;
 import me.osm.gazetteer.search.esclient.IndexHolder;
@@ -39,8 +35,6 @@ import me.osm.gazetteer.search.query.QueryAnalyzer;
 import me.osm.gazetteer.search.query.QueryAnalyzerImpl;;
 
 public class ESDefaultSearch implements Search {
-	
-	private static final Logger log = LoggerFactory.getLogger(ESDefaultSearch.class);
 	
 	private static final String[] SOURCE_FIELDS_BASE = new String[] {
 			"full_text", "osm_id", "json.name", "base_score", "refs",
@@ -133,10 +127,6 @@ public class ESDefaultSearch implements Search {
 				coallesceQueries.add(addrQueryBuilder.buildQuery(
 						query, parsedTokens, pois,
 						QueryBuilderFlags.getFlags(QueryBuilderFlags.FUZZY, QueryBuilderFlags.STREET_OR_LOCALITY)).getPart());
-				
-				
-//				BooleanPart fuzzyFullText = addrQueryBuilder.buildFullTextQuery(allRequiredTokenStrings, prefixT, numberTokens, true);
-//				coallesceQueries.add(addFilters(fuzzyFullText, options).getPart());
 				
 			}
 		}
@@ -297,6 +287,7 @@ public class ESDefaultSearch implements Search {
 			String type = sourceAsMap.get("type").toString();
 			
 			boolean localityMatched = matchedQueries.contains(MATCH_LOCALITY_QUERY_NAME);
+			localityMatched = localityMatched || matchedQueries.contains("local_admin");
 			localityMatched = localityMatched || matchedQueries.stream().filter(s -> s.startsWith("locality_prefix")).findAny().isPresent();
 
 			boolean streetMatched = matchedQueries.contains(MATCH_STREET_QUERY_NAME);
