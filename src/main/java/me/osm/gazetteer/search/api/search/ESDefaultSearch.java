@@ -27,6 +27,8 @@ import me.osm.gazetteer.search.api.ResultsWrapper;
 import me.osm.gazetteer.search.api.search.MainAddressQueryBuilder.ParsedTokens;
 import me.osm.gazetteer.search.api.search.MainAddressQueryBuilder.QueryBuilderFlags;
 import me.osm.gazetteer.search.backendquery.es.builders.BooleanPart;
+import me.osm.gazetteer.search.backendquery.es.builders.ESQueryPart;
+import me.osm.gazetteer.search.backendquery.es.builders.MatchPart;
 import me.osm.gazetteer.search.backendquery.es.builders.TermsPart;
 import me.osm.gazetteer.search.esclient.ESServer;
 import me.osm.gazetteer.search.esclient.IndexHolder;
@@ -132,6 +134,11 @@ public class ESDefaultSearch implements Search {
 						query, parsedTokens, pois,
 						QueryBuilderFlags.getFlags(QueryBuilderFlags.FUZZY, QueryBuilderFlags.STREET_OR_LOCALITY)), 
 						options).getPart());
+				
+				
+				BooleanPart fuzzyFullText = addrQueryBuilder.buildFullTextQuery(allRequiredTokenStrings, prefixT, numberTokens);
+				coallesceQueries.add(addFilters(fuzzyFullText, options).getPart());
+				
 			}
 		}
 

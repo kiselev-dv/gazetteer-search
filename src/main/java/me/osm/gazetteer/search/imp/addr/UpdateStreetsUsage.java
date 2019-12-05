@@ -105,6 +105,8 @@ public class UpdateStreetsUsage {
 						IndexHolder.ADDRESSES_INDEX, 
 						IndexHolder.ADDR_ROW_TYPE, 
 						hit.getId()).setDoc(doc));
+				
+				counter++;
 			}
 			
 			bulk.get();
@@ -114,9 +116,19 @@ public class UpdateStreetsUsage {
 			double perLine = time / (double)counter;
 			long eta = new Double((totalHighways - counter) * perLine).longValue();
 			
-			log.info(String.format("Lines %d, %.3f ms per line, ETA %s", counter, perLine, TimePeriodFormatter.printDuration(eta)));
+			String etaString = "N/A";
+			try {
+				etaString = TimePeriodFormatter.printDuration(eta);
+			}
+			catch (ArithmeticException e) {
+				// Probabbly too long
+			}
+			
+			log.info(String.format("Lines %d of %d, %.3f ms per line, ETA %s", counter, totalHighways, perLine, etaString));
 		});
 		
+		log.info("Done street references count update for {} in ", 
+				region, TimePeriodFormatter.printDuration(new Date().getTime() - start));
 	}
 
 	private Boolean isStreetContainsLocation(Iterable<String> streetTokens, Iterable<String> localityTokens) {

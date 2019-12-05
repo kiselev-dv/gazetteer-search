@@ -240,7 +240,7 @@ public class MainAddressQueryBuilder {
 	private static ESQueryPart buildPrefixPart(Query query, ParsedTokens tokens, boolean pois) {
 		ESQueryPart prefixPart = null;
 
-		if (tokens.prefixT != null) {
+		if (tokens.prefixT != null && !tokens.prefixT.isOptional()) {
 			if(!pois) {
 				if (query.countTokens() == 0) {
 					prefixPart = new Prefix(tokens.prefixT.toString(), "name");
@@ -298,7 +298,7 @@ public class MainAddressQueryBuilder {
 			List<QToken> numberTokens, boolean fuzzy, boolean addNumberTokensToStreets, 
 			boolean allMustMatch, POIClasses pois) {
 		
-		int numOfTokens = requiredTokens.size() + (prefixT == null ? 0 : 1);
+		int numOfTokens = requiredTokens.size() + (prefixT == null || !prefixT.isOptional() ? 0 : 1);
 		allMustMatch = allMustMatch && !requiredTokens.isEmpty() && numOfTokens > 1;
 		
 		BooleanPart multimatch = new BooleanPart();
@@ -317,7 +317,7 @@ public class MainAddressQueryBuilder {
 		if (fuzzy) {
 			((MatchPart) streetMatch).setFuzziness("1");
 		}
-		if (prefixT != null) {
+		if (prefixT != null && !prefixT.isOptional()) {
 			Prefix streetPrefix = new Prefix(prefixT.toString(), "street");
 			streetPrefix.setName("street_prefix:" + prefixT.toString());
 			
@@ -503,6 +503,23 @@ public class MainAddressQueryBuilder {
 		catch (NumberFormatException e) {
 			return null;
 		}
+	}
+
+	public BooleanPart buildFullTextQuery(List<String> allRequiredTokenStrings, QToken prefixT, List<QToken> numberTokens) {
+		
+		List<String> terms = new ArrayList<String>(allRequiredTokenStrings);
+		if (prefixT != null && !prefixT.isOptional()) {
+			terms.add(prefixT.toString());
+		}
+		if (numberTokens != null) {
+			numberTokens.forEach(t -> terms.add(t.toString()));
+		}
+		
+		BooleanPart fuzzyFullText = new BooleanPart()
+				.addFilter(new TermsPart("type", numberTokens.isEmpty() ? Arrays.asList("hghnet") : Arrays.asList("adrpnt") ))
+				.addMust(new MatchPart("full_text", terms).setFuzziness("1").setMinimumShouldMatch(terms.size()));
+		
+		return fuzzyFullText;
 	}
 
 }

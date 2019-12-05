@@ -8,6 +8,8 @@ import me.osm.gazetteer.search.csv.CSVGeocode;
 import me.osm.gazetteer.search.csv.MassGeocodeOptions;
 import me.osm.gazetteer.search.imp.ImportOptions;
 import me.osm.gazetteer.search.imp.addr.AddressesImporter;
+import me.osm.gazetteer.search.imp.addr.UpdateStreetsRefsCountOptions;
+import me.osm.gazetteer.search.imp.addr.UpdateStreetsUsage;
 import me.osm.gazetteer.search.imp.osmdoc.DocImportOptions;
 import me.osm.gazetteer.search.imp.osmdoc.OSMDocImport;
 import me.osm.gazetteer.search.server.REServer;
@@ -20,6 +22,7 @@ public class GazetteerSearch {
 		DocImportOptions docImprt = new DocImportOptions();
 		ServerOptions serve = new ServerOptions();
 		MassGeocodeOptions csv = new MassGeocodeOptions();
+		UpdateStreetsRefsCountOptions streetRefs = new UpdateStreetsRefsCountOptions();
 		
 		JCommander jc = JCommander.newBuilder()
 				.programName("gazetteer-search")
@@ -27,6 +30,7 @@ public class GazetteerSearch {
 				.addCommand("doc-import", docImprt)
 				.addCommand("serve", serve)
 				.addCommand("geocode-csv", csv)
+				.addCommand("count-streets-refs", streetRefs)
 				.build();
 		
 		if(Arrays.stream(args).anyMatch(a -> "--help".equals(a) || "-h".equals(a))) {
@@ -53,6 +57,9 @@ public class GazetteerSearch {
 		}
 		else if ("geocode-csv".equals(parsedCommand)) {
 			new CSVGeocode(csv);
+		}
+		else if ("count-streets-refs".equals(parsedCommand)) {
+			new UpdateStreetsUsage(streetRefs.getRegion()).run();
 		}
 		else {
 			REServer.getInstance(serve);
