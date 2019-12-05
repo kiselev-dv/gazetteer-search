@@ -130,14 +130,13 @@ public class ESDefaultSearch implements Search {
 						QueryBuilderFlags.getFlags(QueryBuilderFlags.STREETS_WITH_NUMBERS, QueryBuilderFlags.FUZZY)), 
 						options).getPart());
 				
-				coallesceQueries.add(addFilters(addrQueryBuilder.buildQuery(
+				coallesceQueries.add(addrQueryBuilder.buildQuery(
 						query, parsedTokens, pois,
-						QueryBuilderFlags.getFlags(QueryBuilderFlags.FUZZY, QueryBuilderFlags.STREET_OR_LOCALITY)), 
-						options).getPart());
+						QueryBuilderFlags.getFlags(QueryBuilderFlags.FUZZY, QueryBuilderFlags.STREET_OR_LOCALITY)).getPart());
 				
 				
-				BooleanPart fuzzyFullText = addrQueryBuilder.buildFullTextQuery(allRequiredTokenStrings, prefixT, numberTokens);
-				coallesceQueries.add(addFilters(fuzzyFullText, options).getPart());
+//				BooleanPart fuzzyFullText = addrQueryBuilder.buildFullTextQuery(allRequiredTokenStrings, prefixT, numberTokens, true);
+//				coallesceQueries.add(addFilters(fuzzyFullText, options).getPart());
 				
 			}
 		}

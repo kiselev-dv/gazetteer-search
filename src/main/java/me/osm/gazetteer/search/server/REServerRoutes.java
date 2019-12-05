@@ -80,30 +80,6 @@ public class REServerRoutes {
 //					new MetaInfoAPI(server))
 //					.flag(Flags.Auth.PUBLIC_ROUTE)
 //					.method(HttpMethod.GET);
-//			
-//			ImportLocations importLocationsInstance = new ImportLocations();
-//			server.uri(root + "/location/_import", importLocationsInstance)
-//					.method(HttpMethod.GET)
-//					.flag(Flags.Cache.DONT_CACHE);
-//			
-//			server.uri(root + "/location/_import.{format}", importLocationsInstance)
-//					.method(HttpMethod.GET)
-//					.flag(Flags.Cache.DONT_CACHE);
-//
-//			SearchAPI searchAPIInstance = new SearchAPI();
-			
-
-//			server.uri(root + "/location/_geocode_csv",
-//					new GeocodeCSVAPI(searchAPIInstance))
-//					.method(HttpMethod.GET)
-//					.flag(Flags.Auth.PUBLIC_ROUTE);
-//
-//			server.uri(root + "/location/_suggest",
-//					new SuggestAPI())
-//					.method(HttpMethod.GET)
-//					.name("feature")
-//					.flag(Flags.Auth.PUBLIC_ROUTE)
-//					.parameter(Parameters.Cache.MAX_AGE, MINUTE);
 //
 //			server.uri(root + "/location/{id}/{_related}",
 //					new FeatureAPI())

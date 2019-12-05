@@ -16,7 +16,7 @@ import org.restexpress.Response;
 public class SearchHtml {
 	
 	private static final File basePath = Paths.get(System.getProperty("user.dir"), "static", "html").toFile();
-	
+
 	public String read(Request req, Response res) throws FileNotFoundException, IOException
 	{
 		String requestPath = new URL(req.getUrl()).getPath();

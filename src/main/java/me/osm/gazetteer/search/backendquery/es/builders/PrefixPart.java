@@ -2,7 +2,7 @@ package me.osm.gazetteer.search.backendquery.es.builders;
 
 import org.json.JSONObject;
 
-public class Prefix implements ESQueryPart {
+public class PrefixPart implements ESQueryPart {
 	
 	private static final String QUERY_NAME = "prefix";
 
@@ -11,7 +11,7 @@ public class Prefix implements ESQueryPart {
 
 	private String name;
 	
-	public Prefix(String prefix, String field) {
+	public PrefixPart(String prefix, String field) {
 		this.prefix = prefix;
 		this.field = field;
 	}

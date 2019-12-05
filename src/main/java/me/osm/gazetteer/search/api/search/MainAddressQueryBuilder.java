@@ -2,6 +2,7 @@ package me.osm.gazetteer.search.api.search;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -18,7 +19,7 @@ import me.osm.gazetteer.search.backendquery.es.builders.DistinctNameFilter;
 import me.osm.gazetteer.search.backendquery.es.builders.ESQueryPart;
 import me.osm.gazetteer.search.backendquery.es.builders.HousenumbersPart;
 import me.osm.gazetteer.search.backendquery.es.builders.MatchPart;
-import me.osm.gazetteer.search.backendquery.es.builders.Prefix;
+import me.osm.gazetteer.search.backendquery.es.builders.PrefixPart;
 import me.osm.gazetteer.search.backendquery.es.builders.StreetHasLocationFilter;
 import me.osm.gazetteer.search.backendquery.es.builders.TermsPart;
 import me.osm.gazetteer.search.query.QToken;
@@ -123,7 +124,7 @@ public class MainAddressQueryBuilder {
 		
 		BooleanPart mainBooleanPart = new BooleanPart();
 		
-		addNumberOfTermsFilter(mainBooleanPart, prefixPart, tokens.allRequired);
+		addNumberOfTermsFilter(mainBooleanPart, prefixPart, tokens.allRequired, flags.fuzzy);
 		
 		JSONObject localityAndStreet = buildMultyMatchQuery(
 				tokens.requiredTokens, 
@@ -139,12 +140,12 @@ public class MainAddressQueryBuilder {
 				mainBooleanPart.addMust(housenumber);
 			}
 			else {
-				mainBooleanPart.addShould(housenumber);
+//				mainBooleanPart.addShould(housenumber);
 			}
 		}
 		
 		if (prefixPart != null) {
-			mainBooleanPart.addShould(prefixPart);
+//			mainBooleanPart.addShould(prefixPart);
 		}
 		
 		
@@ -155,12 +156,13 @@ public class MainAddressQueryBuilder {
 		addOptionalTerms(tokens, mainBooleanPart);
 		
 		// Just for sorting
-		mainBooleanPart.addShould(new MatchPart("full_text", tokens.allRequired).setBoost(1.2));
-		
-		mainBooleanPart.addShould(new MatchPart("admin0", tokens.allRequired).setName("admin0").setBoost(1.2));
-		mainBooleanPart.addShould(new MatchPart("admin1", tokens.allRequired).setName("admin1"));
-		mainBooleanPart.addShould(new MatchPart("admin2", tokens.allRequired).setName("admin2"));
-		mainBooleanPart.addShould(new MatchPart("local_admin", tokens.allRequired).setName("local_admin"));
+//		MatchPart fullTextMatch = buildFullTextMatch(tokens.allRequired, tokens.prefixT, tokens.numberTokens, flags.fuzzy);
+//		mainBooleanPart.addShould(fullTextMatch.setBoost(1.2));
+//		
+//		mainBooleanPart.addShould(new MatchPart("admin0", tokens.allRequired).setName("admin0").setBoost(1.2));
+//		mainBooleanPart.addShould(new MatchPart("admin1", tokens.allRequired).setName("admin1"));
+//		mainBooleanPart.addShould(new MatchPart("admin2", tokens.allRequired).setName("admin2"));
+//		mainBooleanPart.addShould(new MatchPart("local_admin", tokens.allRequired).setName("local_admin"));
 		
 		return mainBooleanPart;
 	}
@@ -237,17 +239,18 @@ public class MainAddressQueryBuilder {
 		}
 	}
 
-	private static ESQueryPart buildPrefixPart(Query query, ParsedTokens tokens, boolean pois) {
+	private ESQueryPart buildPrefixPart(Query query, ParsedTokens tokens, boolean pois) {
 		ESQueryPart prefixPart = null;
 
 		if (tokens.prefixT != null && !tokens.prefixT.isOptional()) {
 			if(!pois) {
 				if (query.countTokens() == 0) {
-					prefixPart = new Prefix(tokens.prefixT.toString(), "name");
+					prefixPart = new PrefixPart(tokens.prefixT.toString(), "name");
 				}
 				else {
-					prefixPart = new Prefix(tokens.prefixT.toString(), "full_text");
+					prefixPart = new PrefixPart(tokens.prefixT.toString(), "full_text");
 				}
+				((PrefixPart)prefixPart).setName("match_pefix");
 			}
 			else {
 				prefixPart = buildPrefixOverMultipleFields(tokens.prefixT, 
@@ -265,7 +268,11 @@ public class MainAddressQueryBuilder {
 		return prefixPart;
 	}
 
-	private static void addNumberOfTermsFilter(BooleanPart mainBooleanPart, ESQueryPart prefixPart, List<String> allRequired) {
+	/**
+	 * At least two required terms of the query should match
+	 * */
+	private void addNumberOfTermsFilter(BooleanPart mainBooleanPart, 
+			ESQueryPart prefixPart, List<String> allRequired, boolean fuzzy) {
 		
 		int total = (prefixPart != null ? 1 : 0) + allRequired.size();
 		
@@ -277,13 +284,20 @@ public class MainAddressQueryBuilder {
 			}
 			
 			for(String term : allRequired) {
+				JSONObject termMatchQueryOptions = new JSONObject()
+						.put("query", term)
+						.put("_name", "term:" + term);
+				
+				if (fuzzy) {
+					termMatchQueryOptions.put("fuzziness", "1");
+				}
+				
 				termsCounter.addShould(new JSONObject().put("match", new JSONObject()
-						.put("full_text", new JSONObject()
-								.put("query", term)
-								.put("_name", "term:" + term))));
+						.put("full_text", termMatchQueryOptions)));
 			}
 			
 			termsCounter.setMinimumShouldMatch(2);
+			termsCounter.setName("number_of_matched_terms_filter");
 			
 			mainBooleanPart.addMust(termsCounter);
 		}
@@ -294,7 +308,7 @@ public class MainAddressQueryBuilder {
 		
 	}
 
-	private static JSONObject buildMultyMatchQuery(List<QToken> requiredTokens, QToken prefixT, 
+	private JSONObject buildMultyMatchQuery(List<QToken> requiredTokens, QToken prefixT, 
 			List<QToken> numberTokens, boolean fuzzy, boolean addNumberTokensToStreets, 
 			boolean allMustMatch, POIClasses pois) {
 		
@@ -318,8 +332,11 @@ public class MainAddressQueryBuilder {
 			((MatchPart) streetMatch).setFuzziness("1");
 		}
 		if (prefixT != null && !prefixT.isOptional()) {
-			Prefix streetPrefix = new Prefix(prefixT.toString(), "street");
+			PrefixPart streetPrefix = new PrefixPart(prefixT.toString(), "street");
 			streetPrefix.setName("street_prefix:" + prefixT.toString());
+			
+			// If the prefix is actually a full term
+			((MatchPart)streetMatch).addTerm(prefixT.toString());
 			
 			BooleanPart or = new BooleanPart();
 			or.addShould(streetMatch);
@@ -351,8 +368,11 @@ public class MainAddressQueryBuilder {
 			((MatchPart) localityMatch).setFuzziness("1");
 		}
 		if (prefixT != null) {
-			Prefix localityPrefix = new Prefix(prefixT.toString(), "locality");
+			PrefixPart localityPrefix = new PrefixPart(prefixT.toString(), "locality");
 			localityPrefix.setName("locality_prefix:" + prefixT.toString());
+			
+			// If the prefix is actually a full term
+			((MatchPart)localityMatch).addTerm(prefixT.toString());
 			
 			BooleanPart or = new BooleanPart();
 			or.addShould(localityMatch);
@@ -377,6 +397,7 @@ public class MainAddressQueryBuilder {
 			JSONObject poiTagsMatch = new JSONObject();
 			poiTagsMatch.put("multi_match", new JSONObject()
 					.put("type", "cross_fields")
+					.put("_name", "poi_cross_fields")
 					.put("query", StringUtils.join(requiredTokenString, " "))
 					.put("minimum_should_match", requiredTokenString.size())
 					.put("fields", Arrays.asList("name^5", "more_tags.brand", "more_tags.operator"))
@@ -418,19 +439,33 @@ public class MainAddressQueryBuilder {
 			}
 		}
 		
-		if (prefixT != null) {
-			requiredTokenString.add(prefixT.toString());
-		}
-		
 		if (numOfTokens >= 2) {
-			JSONObject crossFields = new JSONObject().put("multi_match", new JSONObject()
+			if (fuzzy) {
+				MatchPart crossFields = buildFullTextMatch(requiredTokenString, prefixT, numberTokens, fuzzy)
+						.setBoost(1000.0).setName("cross_field");
+				
+				multimatch.addShould(crossFields);
+				multimatch.setMinimumShouldMatch(0);
+			}
+			else {
+				// cross_fields query doesn't support fuzzyness
+				// TODO: left this part for backward compatibility,
+				// it might not be in use.
+				
+				if (prefixT != null && prefixT.isOptional()) {
+					requiredTokenString.add(prefixT.toString());
+				}
+
+				JSONObject crossFields = new JSONObject().put("multi_match", new JSONObject()
 					.put("query", StringUtils.join(requiredTokenString, ' '))
 					.put("fields", Arrays.asList("locality", "street", "name"))
 					.put("type", "cross_fields")
 					.put("_name", "cross_fields")
 					.put("boost", 1000.0));
-			multimatch.addShould(crossFields);
-			multimatch.setMinimumShouldMatch(0);
+				
+				multimatch.addShould(crossFields);
+				multimatch.setMinimumShouldMatch(0);
+			}
 		}
 		
 
@@ -505,8 +540,25 @@ public class MainAddressQueryBuilder {
 		}
 	}
 
-	public BooleanPart buildFullTextQuery(List<String> allRequiredTokenStrings, QToken prefixT, List<QToken> numberTokens) {
+	/**
+	 * Fuzzy by default
+	 * */
+	public BooleanPart buildFullTextQuery(
+			List<String> allRequiredTokenStrings, QToken prefixT, 
+			List<QToken> numberTokens, boolean fuzzy) {
 		
+		MatchPart fullTextMatch = buildFullTextMatch(allRequiredTokenStrings, prefixT, numberTokens, fuzzy);
+		
+		BooleanPart fuzzyFullText = new BooleanPart()
+				.addFilter(new TermsPart("type", numberTokens.isEmpty() ? 
+						Arrays.asList("hghnet", "hghway", "plcpnt", "plcbnd") : Arrays.asList("adrpnt") ))
+				.addMust(fullTextMatch);
+		
+		return fuzzyFullText;
+	}
+
+	private MatchPart buildFullTextMatch(Collection<String> allRequiredTokenStrings, QToken prefixT,
+			List<QToken> numberTokens, boolean fuzzy) {
 		List<String> terms = new ArrayList<String>(allRequiredTokenStrings);
 		if (prefixT != null && !prefixT.isOptional()) {
 			terms.add(prefixT.toString());
@@ -515,11 +567,11 @@ public class MainAddressQueryBuilder {
 			numberTokens.forEach(t -> terms.add(t.toString()));
 		}
 		
-		BooleanPart fuzzyFullText = new BooleanPart()
-				.addFilter(new TermsPart("type", numberTokens.isEmpty() ? Arrays.asList("hghnet") : Arrays.asList("adrpnt") ))
-				.addMust(new MatchPart("full_text", terms).setFuzziness("1").setMinimumShouldMatch(terms.size()));
-		
-		return fuzzyFullText;
+		MatchPart fullTextMatch = new MatchPart("full_text", terms).setMinimumShouldMatch(terms.size());
+		if (fuzzy) {
+			fullTextMatch.setFuzziness("1");
+		}
+		return fullTextMatch;
 	}
 
 }

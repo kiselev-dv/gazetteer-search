@@ -1,5 +1,6 @@
 package me.osm.gazetteer.search.backendquery.es.builders;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
@@ -7,7 +8,7 @@ import org.json.JSONObject;
 
 public class MatchPart implements ESQueryPart {
 
-	private Iterable<String> terms;
+	private List<String> terms = new ArrayList();
 	private String field;
 	private Double boost;
 	private String fuzziness;
@@ -17,13 +18,18 @@ public class MatchPart implements ESQueryPart {
 
 	public MatchPart(String field, Iterable<String> terms) {
 		this.field = field;
-		this.terms = terms;
+		terms.forEach(this.terms::add);
 	}
 	
 	public MatchPart(String field, Iterable<String> terms, double boost) {
 		this.field = field;
-		this.terms = terms;
 		this.boost = boost;
+		terms.forEach(this.terms::add);
+	}
+	
+	public MatchPart addTerm(String term) {
+		this.terms.add(term);
+		return this;
 	}
 	
 	public MatchPart setBoost(Double boost) {

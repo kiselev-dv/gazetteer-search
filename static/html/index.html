@@ -7,6 +7,9 @@
 			.hilighted {
 				background-color: #999;
 			}
+			button.debug {
+				font-size: 8px;	
+			}
 		</style>
   </head>
   <body>
@@ -62,7 +65,7 @@
 				<div ng-repeat="(k, v) in obj" ng-init="folded = isFolded(k);">
 					<span ng-bind="k" style="font-weight: bold;" ></span>
 					
-					<button ng-if="isQuery(k)" ng-click="debugQ(k,v)">debug</button> 
+					<button class="debug" ng-if="isQuery(k)" ng-click="debugQ(k,v)">debug</button> 
 					
 					<span ng-bind="v" ng-if="isPrimitive(v)"></span>
 					<a ng-show="isFolded(k)" ng-click="folded = !folded">{{folded ? 'show' : 'hide'}}</a>
