@@ -8,7 +8,7 @@ import org.json.JSONObject;
 
 public class MatchPart implements ESQueryPart {
 
-	private List<String> terms = new ArrayList();
+	private List<String> terms = new ArrayList<>();
 	private String field;
 	private Double boost;
 	private String fuzziness;
